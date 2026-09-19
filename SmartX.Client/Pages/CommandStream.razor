@@ -2,6 +2,7 @@
 @using SmartX.Shared.Models
 @using SmartX.Shared.Requests
 @inject HttpClient Http
+@implements IAsyncDisposable
 
 <PageTitle>Command Stream | Smart-X</PageTitle>
 
@@ -67,6 +68,53 @@
         </div>
     </section>
 
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5">Active alerts (@alerts.Length)</h2>
+
+            <p class="text-secondary">
+                Alerts and command history refresh every 5 seconds.
+            </p>
+
+            @if (alerts.Length == 0)
+            {
+                <p>No active alerts in the loaded data.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Device</th>
+                                <th scope="col">State</th>
+                                <th scope="col">Details</th>
+                                <th scope="col">First detected (UTC)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var alert in alerts)
+                            {
+                                <tr @key="(alert.SensorId, alert.State)">
+                                    <td>@alert.DeviceIdentifier</td>
+                                    <td>
+                                        <span class="badge @(alert.State == "Warning" ? "text-bg-danger" : "text-bg-warning")">
+                                            @alert.State
+                                        </span>
+                                    </td>
+                                    <td>@alert.Message</td>
+                                    <td>
+                                        @alert.FirstDetectedAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+
     <h2 class="h5">Command history</h2>
 
     @if (isBusy)
@@ -118,6 +166,9 @@
     private Guid selectedSensorId = Guid.Empty;
     private bool isBusy;
     private string? message;
+    private DeviceAlert[] alerts = [];
+    private readonly CancellationTokenSource lifetime = new();
+    private Task? pollingTask;
 
     private bool CanUndo =>
         history.Any(command => command.UndoneAtUtc is null);
@@ -125,8 +176,12 @@
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
-    }
 
+        if (!lifetime.IsCancellationRequested)
+        {
+            pollingTask = PollAsync();
+        }
+    }
     private Task RefreshAsync()
     {
         return RunAsync(LoadAsync);
@@ -135,7 +190,16 @@
     private async Task LoadAsync()
     {
         var sensors = await Http.GetFromJsonAsync<SensorProfile[]>(
-            "api/sensors") ?? [];
+            "api/sensors",
+            lifetime.Token) ?? [];
+
+        var loadedHistory = await Http.GetFromJsonAsync<DeviceCommand[]>(
+            "api/commands",
+            lifetime.Token) ?? [];
+
+        var loadedAlerts = await Http.GetFromJsonAsync<DeviceAlert[]>(
+            "api/alerts",
+            lifetime.Token) ?? [];
 
         devices = sensors
             .Where(sensor =>
@@ -143,8 +207,8 @@
                 sensor.DataType == TelemetryDataType.Boolean)
             .ToArray();
 
-        history = await Http.GetFromJsonAsync<DeviceCommand[]>(
-            "api/commands") ?? [];
+        history = loadedHistory;
+        alerts = loadedAlerts;
     }
 
     private Task SendCommandAsync(bool state)
@@ -191,9 +255,57 @@
         });
     }
 
+    private string DeviceName(Guid sensorId)
+    {
+        return devices.FirstOrDefault(device => device.Id == sensorId)
+            ?.DeviceIdentifier ?? sensorId.ToString();
+    }
+
+    private static string StateName(bool state)
+    {
+        return state ? "On" : "Off";
+    }
+
+    private async Task PollAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(lifetime.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await RefreshAsync();
+
+                    if (!lifetime.IsCancellationRequested)
+                    {
+                        StateHasChanged();
+                    }
+                });
+            }
+        }
+        catch (OperationCanceledException)
+            when (lifetime.IsCancellationRequested)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        lifetime.Cancel();
+
+        if (pollingTask is not null)
+        {
+            await pollingTask;
+        }
+
+        lifetime.Dispose();
+    }
+
     private async Task RunAsync(Func<Task> action)
     {
-        if (isBusy)
+        if (isBusy || lifetime.IsCancellationRequested)
         {
             return;
         }
@@ -209,6 +321,9 @@
         {
             message = "Connection failed. Check the API and refresh before retrying.";
         }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        {
+        }
         catch (OperationCanceledException)
         {
             message = "Request timed out. Refresh before retrying.";
@@ -223,14 +338,5 @@
         }
     }
 
-    private string DeviceName(Guid sensorId)
-    {
-        return devices.FirstOrDefault(device => device.Id == sensorId)
-            ?.DeviceIdentifier ?? sensorId.ToString();
-    }
-
-    private static string StateName(bool state)
-    {
-        return state ? "On" : "Off";
-    }
+  
 }
