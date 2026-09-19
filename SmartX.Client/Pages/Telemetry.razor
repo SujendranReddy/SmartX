@@ -83,7 +83,19 @@
                                     break;
                             }
                         </div>
+                        <div class="mb-3">
+                            <label for="readingPriority" class="form-label">
+                                Priority
+                            </label>
 
+                            <select id="readingPriority"
+                                    class="form-select"
+                                    @bind="selectedPriority">
+                                <option value="@TelemetryPriority.Normal">Normal</option>
+                                <option value="@TelemetryPriority.High">High</option>
+                                <option value="@TelemetryPriority.Critical">Critical</option>
+                            </select>
+                        </div>
                         <button type="submit" class="btn btn-primary">
                             @(isSaving ? "Submitting..." : "Submit reading")
                         </button>
@@ -171,9 +183,11 @@
     private string? historyError;
     private string? submitMessage;
     private string submitMessageClass = "alert-info";
+    private TelemetryPriority selectedPriority = TelemetryPriority.Normal;
 
     protected override async Task OnParametersSetAsync()
     {
+        selectedPriority = TelemetryPriority.Normal;
         isLoadingSensor = true;
         sensor = null;
         history = [];
@@ -331,8 +345,8 @@ dailyHistoryVersion++;
             }
 
             submitMessageClass = "alert-success";
-            submitMessage = "Reading saved successfully.";
-            floatValue = null;
+            submitMessage = $"{selectedPriority} reading saved successfully.";
+            selectedPriority = TelemetryPriority.Normal; floatValue = null;
             integerValue = null;
             booleanValue = null;
 
@@ -358,7 +372,8 @@ dailyHistoryVersion++;
     {
         var request = new SubmitTelemetryRequest<T>
         {
-            Value = value
+            Value = value,
+            Priority = selectedPriority
         };
 
         using var response = await Http.PostAsJsonAsync(
