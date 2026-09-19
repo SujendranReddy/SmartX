@@ -5,16 +5,24 @@ namespace SmartX.Api.Services;
 public sealed class TelemetryQueue<T> : BackgroundService where T : struct
 {
     private readonly Queue<PendingReading> readings = new();
+
+    private readonly PriorityQueue<PendingReading, (int Rank, long Order)>
+        priorityReadings = new();
+
     private readonly SemaphoreSlim signal = new(0);
     private readonly object syncRoot = new();
     private readonly TelemetryStore<T> store;
+    private long nextOrder;
 
     public TelemetryQueue(TelemetryStore<T> store)
     {
         this.store = store;
     }
 
-    public Task<TelemetryPacket<T>> EnqueueAsync(Guid sensorId, T value)
+    public Task<TelemetryPacket<T>> EnqueueAsync(
+        Guid sensorId,
+        T value,
+        TelemetryPriority priority = TelemetryPriority.Normal)
     {
         var completion = new TaskCompletionSource<TelemetryPacket<T>>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -23,7 +31,18 @@ public sealed class TelemetryQueue<T> : BackgroundService where T : struct
 
         lock (syncRoot)
         {
-            readings.Enqueue(reading);
+            if (priority == TelemetryPriority.Normal)
+            {
+                readings.Enqueue(reading);
+            }
+            else
+            {
+                var rank = priority == TelemetryPriority.Critical ? 0 : 1;
+
+                priorityReadings.Enqueue(
+                    reading,
+                    (rank, nextOrder++));
+            }
         }
 
         signal.Release();
@@ -44,7 +63,9 @@ public sealed class TelemetryQueue<T> : BackgroundService where T : struct
 
                 lock (syncRoot)
                 {
-                    reading = readings.Dequeue();
+                    reading = priorityReadings.Count > 0
+                        ? priorityReadings.Dequeue()
+                        : readings.Dequeue();
                 }
 
                 try
@@ -69,6 +90,11 @@ public sealed class TelemetryQueue<T> : BackgroundService where T : struct
         {
             lock (syncRoot)
             {
+                while (priorityReadings.TryDequeue(out var urgent, out _))
+                {
+                    urgent.Completion.TrySetCanceled();
+                }
+
                 while (readings.TryDequeue(out var reading))
                 {
                     reading.Completion.TrySetCanceled();

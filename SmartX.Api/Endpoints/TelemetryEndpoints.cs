@@ -57,7 +57,12 @@ public static class TelemetryEndpoints
                     });
             }
 
-            var packet = await queue.EnqueueAsync(sensorId,request.Value.Value);
+            if (!Enum.IsDefined(request.Priority))
+            {
+                return Results.BadRequest("Choose a valid telemetry priority.");
+            }
+
+            var packet = await queue.EnqueueAsync(sensorId,request.Value.Value,request.Priority);
             return Results.Ok(packet);
         });
 
