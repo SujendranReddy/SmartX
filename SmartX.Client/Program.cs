@@ -16,4 +16,6 @@ builder.Services.AddScoped(_ => new HttpClient
     Timeout = TimeSpan.FromSeconds(10)
 });
 
+builder.Services.AddScoped<SmartX.Client.Services.CommandDashboardState>();
+
 await builder.Build().RunAsync();

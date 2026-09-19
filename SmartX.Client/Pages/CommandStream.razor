@@ -1,4 +1,5 @@
-﻿@page "/command-stream"
+﻿@inject SmartX.Client.Services.CommandDashboardState DashboardState
+@page "/command-stream"
 @using SmartX.Shared.Models
 @using SmartX.Shared.Requests
 @inject HttpClient Http
@@ -261,7 +262,6 @@
 @code {
     private SensorProfile[] devices = [];
     private DeviceCommand[] history = [];
-    private Guid selectedSensorId = Guid.Empty;
     private bool isBusy;
     private string? message;
     private DeviceAlert[] alerts = [];
@@ -269,9 +269,29 @@
     private Task? pollingTask;
     private Dictionary<Guid, SensorProfile> deviceLookup = new();
     private SensorMonitorStatus[] sensorStatuses = [];
-    private string searchText = string.Empty;
-    private SensorCategory? selectedCategory;
-    private string selectedState = string.Empty;
+    private Guid selectedSensorId
+    {
+        get => DashboardState.SelectedSensorId;
+        set => DashboardState.SelectedSensorId = value;
+    }
+
+    private string searchText
+    {
+        get => DashboardState.SearchText;
+        set => DashboardState.SearchText = value;
+    }
+
+    private SensorCategory? selectedCategory
+    {
+        get => DashboardState.SelectedCategory;
+        set => DashboardState.SelectedCategory = value;
+    }
+
+    private string selectedState
+    {
+        get => DashboardState.SelectedState;
+        set => DashboardState.SelectedState = value;
+    }
     private IEnumerable<SensorMonitorStatus> FilteredSensors =>
     sensorStatuses.Where(sensor =>
         (string.IsNullOrWhiteSpace(searchText) ||
