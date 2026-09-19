@@ -1,4 +1,5 @@
 ﻿using SmartX.Api.Services;
+using SmartX.Shared.Models;
 using SmartX.Shared.Requests;
 
 namespace SmartX.Api.Endpoints;
@@ -17,7 +18,9 @@ public static class CommandEndpoints
         group.MapPost("/{sensorId:guid}", IResult (
             Guid sensorId,
             IssueCommandRequest request,
-            CommandService commands) =>
+            CommandService commands,
+            ActivityService activities,
+            MonitoringService monitoring) =>
         {
             if (!request.RequestedState.HasValue)
             {
@@ -31,9 +34,22 @@ public static class CommandEndpoints
 
             try
             {
+                var conditions = monitoring.GetSnapshot().Sensors
+                    .Where(sensor => sensor.State is "Warning" or "Stale")
+                    .ToArray();
+
                 var command = commands.IssueCommand(
                     sensorId,
                     request.RequestedState.Value);
+
+                activities.Record(new UserActivity
+                {
+                    SensorId = sensorId,
+                    ActivityType = "Command",
+                    RequestedState = request.RequestedState.Value,
+                    RecordedAtUtc = command.IssuedAtUtc,
+                    Conditions = conditions
+                });
 
                 return Results.Ok(command);
             }
