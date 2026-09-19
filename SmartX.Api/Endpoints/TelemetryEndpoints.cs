@@ -22,11 +22,11 @@ public static class TelemetryEndpoints
         var group = app.MapGroup(
             $"/api/sensors/{{sensorId:guid}}/telemetry/{route}");
 
-        group.MapPost("/", IResult (
+        group.MapPost("/", async Task<IResult> (
             Guid sensorId,
             SubmitTelemetryRequest<T> request,
             SensorRegistry registry,
-            TelemetryStore<T> store) =>
+            TelemetryQueue<T> queue) =>
         {
             var sensorError = ValidateSensor(
                 registry,
@@ -57,8 +57,7 @@ public static class TelemetryEndpoints
                     });
             }
 
-            var packet = store.Add(sensorId, request.Value.Value);
-
+            var packet = await queue.EnqueueAsync(sensorId,request.Value.Value);
             return Results.Ok(packet);
         });
 
