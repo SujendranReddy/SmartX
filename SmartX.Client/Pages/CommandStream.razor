@@ -70,6 +70,104 @@
 
     <section class="card mb-4">
         <div class="card-body">
+            <h2 class="h5">Live devices</h2>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label for="deviceSearch" class="form-label">
+                        Search devices
+                    </label>
+
+                    <input id="deviceSearch"
+                           class="form-control"
+                           placeholder="Device name or location"
+                           @bind="searchText"
+                           @bind:event="oninput" />
+                </div>
+
+                <div class="col-md-3">
+                    <label for="categoryFilter" class="form-label">
+                        Category
+                    </label>
+
+                    <select id="categoryFilter"
+                            class="form-select"
+                            @bind="selectedCategory">
+                        <option value="">All categories</option>
+
+                        @foreach (var category in Enum.GetValues<SensorCategory>())
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="stateFilter" class="form-label">
+                        State
+                    </label>
+
+                    <select id="stateFilter"
+                            class="form-select"
+                            @bind="selectedState">
+                        <option value="">All states</option>
+                        <option value="Normal">Normal</option>
+                        <option value="Warning">Warning</option>
+                        <option value="Stale">Stale</option>
+                        <option value="No data">No data</option>
+                    </select>
+                </div>
+            </div>
+
+            @{
+                var visibleSensors = FilteredSensors.ToArray();
+            }
+
+            <p class="text-secondary">
+                Showing @visibleSensors.Length of @sensorStatuses.Length devices
+            </p>
+
+            @if (visibleSensors.Length == 0)
+            {
+                <p>No devices match these filters.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Device</th>
+                                <th scope="col">Location</th>
+                                <th scope="col">Latest reading</th>
+                                <th scope="col">State</th>
+                                <th scope="col">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sensor in visibleSensors)
+                            {
+                                <tr @key="sensor.SensorId">
+                                    <td>
+                                        <a href="@($"sensors/{sensor.SensorId}/telemetry")">
+                                            @sensor.DeviceIdentifier
+                                        </a>
+                                    </td>
+                                    <td>@sensor.DeploymentLocation</td>
+                                    <td>@sensor.LatestValue</td>
+                                    <td>@sensor.State</td>
+                                    <td>@sensor.Message</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="card mb-4">
+        <div class="card-body">
             <h2 class="h5">Active alerts (@alerts.Length)</h2>
 
             <p class="text-secondary">
@@ -169,6 +267,25 @@
     private DeviceAlert[] alerts = [];
     private readonly CancellationTokenSource lifetime = new();
     private Task? pollingTask;
+    private Dictionary<Guid, SensorProfile> deviceLookup = new();
+    private SensorMonitorStatus[] sensorStatuses = [];
+    private string searchText = string.Empty;
+    private SensorCategory? selectedCategory;
+    private string selectedState = string.Empty;
+    private IEnumerable<SensorMonitorStatus> FilteredSensors =>
+    sensorStatuses.Where(sensor =>
+        (string.IsNullOrWhiteSpace(searchText) ||
+            sensor.DeviceIdentifier.Contains(
+                searchText.Trim(),
+                StringComparison.OrdinalIgnoreCase) ||
+            sensor.DeploymentLocation.Contains(
+                searchText.Trim(),
+                StringComparison.OrdinalIgnoreCase)) &&
+        (!selectedCategory.HasValue ||
+            deviceLookup.TryGetValue(sensor.SensorId, out var profile) &&
+            profile.Category == selectedCategory.Value) &&
+        (selectedState.Length == 0 ||
+            sensor.State == selectedState));
 
     private bool CanUndo =>
         history.Any(command => command.UndoneAtUtc is null);
@@ -201,12 +318,19 @@
             "api/alerts",
             lifetime.Token) ?? [];
 
+        var monitoring = await Http.GetFromJsonAsync<MonitoringSnapshot>(
+            "api/monitoring",
+            lifetime.Token);
+
+        deviceLookup = sensors.ToDictionary(sensor => sensor.Id);
+
         devices = sensors
             .Where(sensor =>
                 sensor.Category == SensorCategory.Actuator &&
                 sensor.DataType == TelemetryDataType.Boolean)
             .ToArray();
 
+        sensorStatuses = monitoring?.Sensors.ToArray() ?? [];
         history = loadedHistory;
         alerts = loadedAlerts;
     }
@@ -257,8 +381,9 @@
 
     private string DeviceName(Guid sensorId)
     {
-        return devices.FirstOrDefault(device => device.Id == sensorId)
-            ?.DeviceIdentifier ?? sensorId.ToString();
+        return deviceLookup.TryGetValue(sensorId, out var device)
+            ? device.DeviceIdentifier
+            : sensorId.ToString();
     }
 
     private static string StateName(bool state)
