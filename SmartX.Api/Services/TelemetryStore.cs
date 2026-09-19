@@ -4,9 +4,10 @@ namespace SmartX.Api.Services;
 
 public sealed class TelemetryStore<T> where T : struct
 {
-    private readonly Dictionary<Guid, List<TelemetryPacket<T>>> readings = new();
-    
-    // cache the latest packet so monitoring does not scan every sensors full history
+    private readonly Dictionary<
+        Guid,
+        SortedDictionary<DateTimeOffset, List<TelemetryPacket<T>>>> readings = new();
+
     private readonly Dictionary<Guid, TelemetryPacket<T>> latestReadings = new();
     private readonly object syncRoot = new();
 
@@ -21,14 +22,7 @@ public sealed class TelemetryStore<T> where T : struct
                 RecordedAtUtc = DateTimeOffset.UtcNow
             };
 
-            if (!readings.TryGetValue(sensorId, out var sensorReadings))
-            {
-                sensorReadings = new List<TelemetryPacket<T>>();
-                readings.Add(sensorId, sensorReadings);
-            }
-
-            sensorReadings.Add(packet);
-            UpdateLatest(packet);
+            StorePacket(packet);
 
             return packet;
         }
@@ -40,19 +34,12 @@ public sealed class TelemetryStore<T> where T : struct
     {
         ArgumentNullException.ThrowIfNull(batches);
 
-        var totalReadings = 0;
+        var incoming = new List<TelemetryPacket<T>>();
 
         foreach (var batch in batches)
         {
             ArgumentNullException.ThrowIfNull(batch);
-            totalReadings = checked(totalReadings + batch.Length);
-        }
-        // this validates the complete batch before changing the shared colleciton
-        var incoming = new List<TelemetryPacket<T>>(totalReadings);
-        TelemetryPacket<T>? newest = null;
 
-        foreach (var batch in batches)
-        {
             foreach (var packet in batch)
             {
                 if (packet is null)
@@ -77,29 +64,14 @@ public sealed class TelemetryStore<T> where T : struct
                 }
 
                 incoming.Add(packet);
-
-                if (newest is null ||
-                    packet.RecordedAtUtc >= newest.RecordedAtUtc)
-                {
-                    newest = packet;
-                }
             }
         }
 
         lock (syncRoot)
         {
-            if (!readings.TryGetValue(sensorId, out var sensorReadings))
+            foreach (var packet in incoming)
             {
-                readings.Add(sensorId, incoming);
-            }
-            else
-            {
-                sensorReadings.AddRange(incoming);
-            }
-
-            if (newest is not null)
-            {
-                UpdateLatest(newest);
+                StorePacket(packet);
             }
         }
 
@@ -118,48 +90,48 @@ public sealed class TelemetryStore<T> where T : struct
     {
         lock (syncRoot)
         {
-            // returns a snapshot so callers cannot modify the list
-            return readings.TryGetValue(sensorId, out var sensorReadings)
-                ? sensorReadings.ToArray()
+            return readings.TryGetValue(sensorId, out var timeline)
+                ? timeline.Values.SelectMany(packets => packets).ToArray()
                 : [];
         }
     }
 
     public DailyTelemetryHistory<T> GetDailyHistory(Guid sensorId)
     {
-        var snapshot = GetHistory(sensorId);
-
-        var days = snapshot
-            // grouped by UTC date so the daily boudaries dont depend on the servers local timezone
-            .GroupBy(packet => DateOnly.FromDateTime(
-                packet.RecordedAtUtc.UtcDateTime))
-            .OrderBy(group => group.Key)
+        var days = GetHistory(sensorId)
+            .GroupBy(packet =>
+                DateOnly.FromDateTime(packet.RecordedAtUtc.UtcDateTime))
             .ToArray();
-
-        var dates = new DateOnly[days.Length];
-        var dailyReadings = new TelemetryPacket<T>[days.Length][];
-
-        for (var dayIndex = 0; dayIndex < days.Length; dayIndex++)
-        {
-            dates[dayIndex] = days[dayIndex].Key;
-
-            dailyReadings[dayIndex] = days[dayIndex]
-                .OrderBy(packet => packet.RecordedAtUtc)
-                .ToArray();
-        }
 
         return new DailyTelemetryHistory<T>
         {
             SensorId = sensorId,
-            Dates = dates,
-            Readings = dailyReadings
+            Dates = days.Select(day => day.Key).ToArray(),
+            Readings = days.Select(day => day.ToArray()).ToArray()
         };
     }
 
-    private void UpdateLatest(TelemetryPacket<T> packet)
+    private void StorePacket(TelemetryPacket<T> packet)
     {
-        if (!latestReadings.TryGetValue(packet.SensorId, out var current) ||
-            packet.RecordedAtUtc >= current.RecordedAtUtc)
+        if (!readings.TryGetValue(packet.SensorId, out var timeline))
+        {
+            timeline = new SortedDictionary<
+                DateTimeOffset,
+                List<TelemetryPacket<T>>>();
+
+            readings.Add(packet.SensorId, timeline);
+        }
+
+        if (!timeline.TryGetValue(packet.RecordedAtUtc, out var packets))
+        {
+            packets = new List<TelemetryPacket<T>>();
+            timeline.Add(packet.RecordedAtUtc, packets);
+        }
+
+        packets.Add(packet);
+
+        if (!latestReadings.TryGetValue(packet.SensorId, out var latest) ||
+            packet.RecordedAtUtc >= latest.RecordedAtUtc)
         {
             latestReadings[packet.SensorId] = packet;
         }
