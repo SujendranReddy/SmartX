@@ -60,6 +60,9 @@ builder.Services.AddHostedService<TelemetryQueue<int>>(
 builder.Services.AddHostedService<TelemetryQueue<bool>>(
 
     services => services.GetRequiredService<TelemetryQueue<bool>>());
+
+builder.Services.AddSingleton<AlertService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -137,5 +140,10 @@ app.MapGet(
         return Results.Ok(monitoring.GetSnapshot());
     });
 app.MapCommandEndpoints();
+
+app.MapGet("/api/alerts", (AlertService alerts) =>
+{
+    return Results.Ok(alerts.GetActiveAlerts());
+});
 
 app.Run();
