@@ -2,8 +2,7 @@
 
 public sealed record UserActivity
 {
-    public required Guid SensorId { get; init; }
-
+    public Guid? SensorId { get; init; }
     public required string ActivityType { get; init; }
 
     public bool? RequestedState { get; init; }

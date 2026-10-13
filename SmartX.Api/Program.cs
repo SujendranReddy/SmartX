@@ -1,6 +1,7 @@
 using SmartX.Shared.Models;
 using SmartX.Api.Endpoints;
 using SmartX.Api.Services;
+using SmartX.Shared.Requests;
 using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -152,5 +153,48 @@ app.MapGet("/api/activities", (ActivityService activities) =>
 {
     return Results.Ok(activities.GetHistory());
 });
+
+
+app.MapPost("/api/activities/search", IResult (
+    RecordSearchRequest request,
+    ActivityService activities,
+    MonitoringService monitoring) =>
+{
+    var searchText = request.SearchText?.Trim();
+
+    if (string.IsNullOrWhiteSpace(searchText))
+    {
+        return Results.BadRequest(new
+        {
+            message = "Enter a search term."
+        });
+    }
+
+    if (searchText.Length > 100)
+    {
+        return Results.BadRequest(new
+        {
+            message = "Search terms cannot exceed 100 characters."
+        });
+    }
+
+    var conditions = monitoring.GetSnapshot().Sensors
+        .Where(sensor => sensor.State is "Warning" or "Stale")
+        .ToArray();
+
+    activities.Record(new UserActivity
+    {
+        ActivityType = "Search",
+        SearchText = searchText,
+        RecordedAtUtc = DateTimeOffset.UtcNow,
+        Conditions = conditions
+    });
+
+    return Results.Ok(new
+    {
+        message = "Search recorded."
+    });
+});
+
 
 app.Run();

@@ -84,6 +84,14 @@
                            placeholder="Device name or location"
                            @bind="searchText"
                            @bind:event="oninput" />
+
+                           
+                    <button class="btn btn-primary mt-2"
+                            disabled="@isBusy"
+                            @onclick="RecordSearchAsync">
+                        Search
+                    </button>
+
                 </div>
 
                 <div class="col-md-3">
@@ -379,6 +387,38 @@
             message = $"Device turned {StateName(state).ToLowerInvariant()}.";
         });
     }
+
+    private Task RecordSearchAsync()
+    {
+        return RunAsync(async () =>
+        {
+            var term = searchText.Trim();
+
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                message = "Enter a search term.";
+                return;
+            }
+
+            if (term.Length > 100)
+            {
+                message = "Search terms cannot exceed 100 characters.";
+                return;
+            }
+
+            using var response = await Http.PostAsJsonAsync(
+                "api/activities/search",
+                new RecordSearchRequest
+                {
+                    SearchText = term
+                });
+
+            message = response.IsSuccessStatusCode
+                ? "Search recorded successfully."
+                : "Could not record the search.";
+        });
+    }
+
 
     private Task UndoAsync()
     {
