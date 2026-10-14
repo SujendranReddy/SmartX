@@ -71,6 +71,73 @@
 
     <section class="card mb-4">
         <div class="card-body">
+            <h2 class="h5">Suggested Actions</h2>
+
+            <p class="text-secondary">
+                Recommendations based on live sensor conditions
+                and historical user activity.
+                Updated every 5 seconds.
+            </p>
+
+            @if (recommendations.Length == 0)
+            {
+                <div class="alert alert-success">
+                    No recommendations at the moment.
+                    All monitored devices appear to be operating normally.
+                </div>
+            }
+            else
+            {
+                <div class="row g-3">
+                    @foreach (var recommendation in recommendations)
+                    {
+                        <div class="col-md-6"
+                             @key="(recommendation.SensorId, recommendation.Title)">
+                            <div class="card h-100 border-secondary">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h3 class="h6 mb-0">
+                                            @recommendation.Title
+                                        </h3>
+
+                                        <span class="badge @(recommendation.Priority == "High" ? "text-bg-danger" : "text-bg-secondary")">
+                                            @recommendation.Priority
+                                        </span>
+                                    </div>
+
+                                    <p class="fw-semibold">
+                                        @recommendation.SuggestedAction
+                                    </p>
+
+                                    <p class="text-secondary small">
+                                        @recommendation.Reason
+                                    </p>
+
+                                    @if (recommendation.SupportingActivityCount > 0)
+                                    {
+                                        <p class="small mb-2">
+                                            Historical evidence:
+                                            @recommendation.SupportingActivityCount
+                                            matching activities
+                                        </p>
+                                    }
+
+                                    <small class="text-secondary">
+                                        Generated:
+                                        @recommendation.GeneratedAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")
+                                        UTC
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="card mb-4">
+        <div class="card-body">
             <h2 class="h5">Live devices</h2>
 
             <div class="row g-3 mb-3">
@@ -273,6 +340,7 @@
     private bool isBusy;
     private string? message;
     private DeviceAlert[] alerts = [];
+    private ActionRecommendation[] recommendations = [];
     private readonly CancellationTokenSource lifetime = new();
     private Task? pollingTask;
     private Dictionary<Guid, SensorProfile> deviceLookup = new();
@@ -346,6 +414,13 @@
             "api/alerts",
             lifetime.Token) ?? [];
 
+        
+        var loadedRecommendations =
+            await Http.GetFromJsonAsync<ActionRecommendation[]>(
+                "api/recommendations",
+                lifetime.Token) ?? [];
+
+
         var monitoring = await Http.GetFromJsonAsync<MonitoringSnapshot>(
             "api/monitoring",
             lifetime.Token);
@@ -361,6 +436,7 @@
         sensorStatuses = monitoring?.Sensors.ToArray() ?? [];
         history = loadedHistory;
         alerts = loadedAlerts;
+        recommendations = loadedRecommendations;
     }
 
     private Task SendCommandAsync(bool state)
