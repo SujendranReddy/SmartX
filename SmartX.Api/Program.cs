@@ -66,6 +66,8 @@ builder.Services.AddSingleton<AlertService>();
 
 builder.Services.AddSingleton<ActivityService>();
 
+builder.Services.AddSingleton<RecommendationService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -195,6 +197,13 @@ app.MapPost("/api/activities/search", IResult (
         message = "Search recorded."
     });
 });
+
+
+app.MapGet("/api/recommendations",
+    (RecommendationService recommendations) =>
+    {
+        return Results.Ok(recommendations.GetRecommendations());
+    });
 
 
 app.Run();
