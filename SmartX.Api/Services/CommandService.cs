@@ -75,7 +75,7 @@ public sealed class CommandService
             {
                 return null;
             }
-
+            // Restore state before removing command
             telemetryStore.Add(command.SensorId, command.PreviousState);
 
             undoStack.Pop();

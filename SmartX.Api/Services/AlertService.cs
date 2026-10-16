@@ -35,7 +35,7 @@ public sealed class AlertService
 
                 var key = (sensor.SensorId, sensor.State);
                 currentKeys.Add(key);
-
+                // Prevent duplicate active alerts
                 if (activeKeys.Add(key))
                 {
                     alerts.Add(key, new DeviceAlert

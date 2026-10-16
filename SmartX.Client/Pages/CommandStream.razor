@@ -345,6 +345,7 @@
     private Task? pollingTask;
     private Dictionary<Guid, SensorProfile> deviceLookup = new();
     private SensorMonitorStatus[] sensorStatuses = [];
+    // Keep dashboard selections across pages
     private Guid selectedSensorId
     {
         get => DashboardState.SelectedSensorId;
@@ -526,7 +527,7 @@
     {
         return state ? "On" : "Off";
     }
-
+    // Refresh dashboard every 5 seconds
     private async Task PollAsync()
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));

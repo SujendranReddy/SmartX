@@ -23,6 +23,7 @@ public sealed class RecommendationService
     {
         var now = DateTimeOffset.UtcNow;
         var snapshot = monitoring.GetSnapshot();
+        // Analyza activity from the last 30 days
         var history = activities.GetHistory()
             .Where(activity =>
                 activity.RecordedAtUtc >= now.AddDays(-30))
@@ -49,7 +50,7 @@ public sealed class RecommendationService
                         condition.SensorId == sensor.SensorId &&
                         condition.State == sensor.State))
                 .ToArray();
-
+            // Find repeated commands at same location
             var commandPattern = relatedActivities
                 .Where(activity =>
                     activity.ActivityType == "Command" &&
@@ -101,7 +102,7 @@ public sealed class RecommendationService
 
                 continue;
             }
-
+            // Find recurring search patterns
             var searchPattern = relatedActivities
                 .Where(activity =>
                     activity.ActivityType == "Search" &&
@@ -175,6 +176,7 @@ public sealed class RecommendationService
         foreach (var search in searches.OrderBy(
             activity => activity.RecordedAtUtc))
         {
+            // Count separate 5 minute search sessions
             if (!lastSearch.HasValue ||
                 search.RecordedAtUtc - lastSearch.Value >=
                     TimeSpan.FromMinutes(5))

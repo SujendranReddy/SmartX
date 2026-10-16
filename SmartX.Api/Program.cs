@@ -179,7 +179,7 @@ app.MapPost("/api/activities/search", IResult (
             message = "Search terms cannot exceed 100 characters."
         });
     }
-
+    // Capture active issues during searc
     var conditions = monitoring.GetSnapshot().Sensors
         .Where(sensor => sensor.State is "Warning" or "Stale")
         .ToArray();

@@ -37,6 +37,7 @@ public sealed class TelemetryQueue<T> : BackgroundService where T : struct
             }
             else
             {
+                // Lower rank gets higher priority
                 var rank = priority == TelemetryPriority.Critical ? 0 : 1;
 
                 priorityReadings.Enqueue(
@@ -63,6 +64,7 @@ public sealed class TelemetryQueue<T> : BackgroundService where T : struct
 
                 lock (syncRoot)
                 {
+                    // Process urgent readings first
                     reading = priorityReadings.Count > 0
                         ? priorityReadings.Dequeue()
                         : readings.Dequeue();

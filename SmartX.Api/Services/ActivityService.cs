@@ -13,7 +13,7 @@ public sealed class ActivityService
         lock (syncRoot)
         {
             history.Enqueue(activity);
-
+            // Keep only the latest 500 activities
             while (history.Count > HistoryLimit)
             {
                 history.Dequeue();

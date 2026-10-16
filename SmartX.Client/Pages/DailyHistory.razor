@@ -427,6 +427,7 @@
 
         foreach (var sample in samples)
         {
+            // Map readings to SVG coords
             var x = duration <= 0
                 ? (left + right) / 2
                 : left +

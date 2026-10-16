@@ -121,7 +121,7 @@ public sealed class TelemetryStore<T> where T : struct
 
             readings.Add(packet.SensorId, timeline);
         }
-
+        // Keep readings with matching timestamps
         if (!timeline.TryGetValue(packet.RecordedAtUtc, out var packets))
         {
             packets = new List<TelemetryPacket<T>>();
