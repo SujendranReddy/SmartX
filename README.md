@@ -70,19 +70,19 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 - Stop each application with Ctrl+C in its terminal.
 
 ## Features
-- Register sensors and search or filter the sensor directory.
-- Submit Float, Integer and Boolean telemetry.
-- Process readings using FIFO and priority queues.
-- Store and retrieve telemetry using dictionaries and sorted dictionaries.
-- View daily telemetry history with timeline graphs.
+- Register sensors and search or filter the sensor directory
+- Submit Float, Integer and Boolean telemetry
+- Process readings using FIFO and priority queues
+- Store and retrieve telemetry using dictionaries and sorted dictionaries
+- View daily telemetry history with timeline graphs
 - Monitor live sensor readings and detect warnings or stale devices
-- Track unique active alerts using a HashSet.
-- Control simulated actuators and Undo commands using a Stack.
-- Record command and search activity.
-- Generate recommendations based on live warnings and historical activity.
-- Validate nested deployment structures.
-- Upload and download protected sensor attachments.
-- Generate demo data for testing.
+- Track unique active alerts using a HashSet
+- Control simulated actuators and Undo commands using a Stack
+- Record command and search activit
+- Generate recommendations based on live warnings and historical activity
+- Validate nested deployment structures
+- Upload and download protected sensor attachments
+- Generate demo data for testing
 
 ## Testing
 Automated tests are implemented using xUnit.
@@ -110,3 +110,6 @@ All 13 tests passed during final testing.
 ## YouTube
 Part 1:
 https://youtu.be/nanmlA89OEk?si=8S9GPO4PL3lNkro1
+
+Part 2:
+https://youtu.be/nL39yScdHOI?si=bpDK6O1TDdgTEO0o
