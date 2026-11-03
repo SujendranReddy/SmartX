@@ -6,6 +6,12 @@ public sealed record MeshConnection(
     string Target,
     double Cost);
 
+public sealed record MeshSpanningTree(
+    MeshConnection[] Connections,
+    string[] ReachableNodes,
+    string[] UnreachableNodes,
+    double TotalCost);
+
 public sealed class MeshGraph
 {
     private readonly Dictionary<string, Dictionary<string, double>> adjacency =
@@ -178,5 +184,84 @@ public sealed class MeshGraph
             .Where(node => !reachable.Contains(node))
             .OrderBy(node => node, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    public MeshSpanningTree GetMinimumSpanningTree(string gatewayId)
+    {
+        if (string.IsNullOrWhiteSpace(gatewayId) ||
+            !adjacency.ContainsKey(gatewayId.Trim()))
+        {
+            throw new KeyNotFoundException(
+                "The gateway node does not exist.");
+        }
+
+        var gateway = adjacency.Keys.First(node =>
+            string.Equals(
+                node,
+                gatewayId.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+
+        var visited = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+
+        var selectedConnections = new List<MeshConnection>();
+
+        var frontier = new PriorityQueue<
+            MeshConnection,
+            (double Cost, string Source, string Target)>();
+
+        visited.Add(gateway);
+        AddCandidateConnections(gateway);
+
+        while (frontier.TryDequeue(out var connection, out _))
+        {
+            if (!visited.Add(connection.Target))
+            {
+                continue;
+            }
+
+            selectedConnections.Add(connection);
+            AddCandidateConnections(connection.Target);
+        }
+
+        var reachableNodes = visited
+            .OrderBy(node => node, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var unreachableNodes = adjacency.Keys
+            .Where(node => !visited.Contains(node))
+            .OrderBy(node => node, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new MeshSpanningTree(
+            selectedConnections.ToArray(),
+            reachableNodes,
+            unreachableNodes,
+            selectedConnections.Sum(connection => connection.Cost));
+
+        void AddCandidateConnections(string source)
+        {
+            foreach (var neighbour in adjacency[source]
+                .OrderBy(node => node.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                if (visited.Contains(neighbour.Key))
+                {
+                    continue;
+                }
+
+                var connection = new MeshConnection(
+                    source,
+                    neighbour.Key,
+                    neighbour.Value);
+
+                frontier.Enqueue(
+                    connection,
+                    (
+                        neighbour.Value,
+                        source.ToUpperInvariant(),
+                        neighbour.Key.ToUpperInvariant()
+                    ));
+            }
+        }
     }
 }
