@@ -26,7 +26,7 @@
                     </p>
                     <a class="btn btn-primary mb-2" href="sensors">
                         Register and view sensors
-                        </a>
+                    </a>
                     <button class="btn btn-primary mt-auto"
                             disabled="@isChecking"
                             @onclick="CheckConnectionAsync">
@@ -51,15 +51,17 @@
         </div>
 
         <div class="col-12 col-lg-4">
-            <section class="card h-100">
+            <section class="card h-100 border-success">
                 <div class="card-body d-flex flex-column">
                     <h2 class="h5">Network Topology and Mesh Routing</h2>
                     <p class="text-secondary">
-                        Explore device connections and routing across the mesh.
+                        View registered sensors, wireless connections,
+                        network routes and minimum spanning tree calculations.
                     </p>
-                    <button class="btn btn-outline-secondary mt-auto" disabled>
-                        Available in the final PoE
-                    </button>
+                    <NavLink class="btn btn-primary mt-auto"
+                             href="network-topology">
+                        Open network topology
+                    </NavLink>
                 </div>
             </section>
         </div>
