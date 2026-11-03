@@ -97,15 +97,17 @@ All 13 tests passed during final testing.
 
 ## Demo
 1. Register an Environmental sensor with the Float data type.
-2. Submit a reading of 10 and check Live Monitoring for a Warning
-3. Open the Command Stream to view the suggested action.
+2. Submit readings using Normal, High and Critical priorities. Use `10` for Critical and check Live Monitoring for a Warning.
+3. Open the Command Stream to view the suggested action and refresh Active Alerts to check for duplicates.
 4. Register a Boolean actuator, initialise it as OFF, turn it ON and use Undo.
 5. Check command history to confirm the Undone status.
-6. Submit multiple telemetry readings and view their timeline graph.
-7. Record repeated searches or commands during warnings to demonstrate historical recommendations
+6. Submit multiple telemetry readings and view their timeline graph to check chronological ordering.
+7. Record repeated searches or commands during warnings to demonstrate historical recommendations.
 8. Submit a normal reading of 50 and verify that the warning and recommendation disappear.
 9. Upload and download a sensor attachment.
 10. Load the demo dataset to test searching, pagination and historical readings.
+11. Run TelemetryQueueTests to verify FIFO and priority processing and DataStructureTests to verify dictionary lookups and sorted history.
+12. Run all 13 automated tests using dotnet test SmartX.Tests/SmartX.Tests.csproj.
 
 ## YouTube
 Part 1:
