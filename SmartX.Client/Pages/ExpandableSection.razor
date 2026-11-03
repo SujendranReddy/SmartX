@@ -1,0 +1,24 @@
+﻿
+@using Microsoft.AspNetCore.Components
+
+<details class="card mb-3 overflow-hidden" open="@InitiallyOpen">
+    <summary class="card-header px-3 py-3 fw-semibold"
+             style="cursor: pointer;">
+        @Title
+    </summary>
+
+    <div class="card-body">
+        @ChildContent
+    </div>
+</details>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool InitiallyOpen { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

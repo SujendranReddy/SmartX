@@ -1,4 +1,5 @@
-﻿@page "/sensors"
+﻿
+@page "/sensors"
 @using SmartX.Shared.Models
 @using SmartX.Shared.Requests
 @inject HttpClient Http
@@ -8,97 +9,95 @@
 <div class="container py-4">
     <h1>Sensor Registration</h1>
     <p class="text-secondary">
-        Register a device and choose the type of telemetry it sends.
+        Register, configure and manage sensors in Smart-X.
     </p>
 
-    <section class="card mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3">Register a sensor</h2>
+    <ExpandableSection Title="Register a Sensor">
+        @if (!string.IsNullOrWhiteSpace(formMessage))
+        {
+            <div class="alert @formMessageClass" role="status">
+                @formMessage
+            </div>
+        }
 
-            @if (!string.IsNullOrWhiteSpace(formMessage))
-            {
-                <div class="alert @formMessageClass" role="status">
-                    @formMessage
-                </div>
-            }
+        <EditForm Model="@request"
+                  OnValidSubmit="@RegisterSensorAsync"
+                  @key="request">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
 
-            <EditForm Model="@request"
-                      OnValidSubmit="@RegisterSensorAsync"
-                      @key="request">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
-
-                <fieldset disabled="@isSaving">
-                    <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label for="deviceIdentifier" class="form-label">
-                                Device identifier
-                            </label>
-                            <InputText id="deviceIdentifier"
-                                       class="form-control"
-                                       maxlength="100"
-                                       @bind-Value="request.DeviceIdentifier" />
-                            <ValidationMessage For="@(() => request.DeviceIdentifier)" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label for="deploymentLocation" class="form-label">
-                                Deployment location
-                            </label>
-                            <InputText id="deploymentLocation"
-                                       class="form-control"
-                                       maxlength="200"
-                                       @bind-Value="request.DeploymentLocation" />
-                            <ValidationMessage For="@(() => request.DeploymentLocation)" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label for="category" class="form-label">
-                                Sensor category
-                            </label>
-                            <InputSelect id="category"
-                                         class="form-select"
-                                         @bind-Value="request.Category">
-                                <option value="">Select a category</option>
-                                @foreach (var category in Enum.GetValues<SensorCategory>())
-                                {
-                                    <option value="@category">
-                                        @CategoryLabel(category)
-                                    </option>
-                                }
-                            </InputSelect>
-                            <ValidationMessage For="@(() => request.Category)" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label for="dataType" class="form-label">
-                                Telemetry data type
-                            </label>
-                            <InputSelect id="dataType"
-                                         class="form-select"
-                                         @bind-Value="request.DataType">
-                                <option value="">Select a data type</option>
-                                @foreach (var dataType in Enum.GetValues<TelemetryDataType>())
-                                {
-                                    <option value="@dataType">@dataType</option>
-                                }
-                            </InputSelect>
-                            <ValidationMessage For="@(() => request.DataType)" />
-                        </div>
-
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary">
-                                @(isSaving ? "Registering..." : "Register sensor")
-                            </button>
-                        </div>
+            <fieldset disabled="@isSaving">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="deviceIdentifier" class="form-label">
+                            Device identifier
+                        </label>
+                        <InputText id="deviceIdentifier"
+                                   class="form-control"
+                                   maxlength="100"
+                                   @bind-Value="request.DeviceIdentifier" />
+                        <ValidationMessage For="@(() => request.DeviceIdentifier)" />
                     </div>
-                </fieldset>
-            </EditForm>
-        </div>
-    </section>
 
+                    <div class="col-12 col-md-6">
+                        <label for="deploymentLocation" class="form-label">
+                            Deployment location
+                        </label>
+                        <InputText id="deploymentLocation"
+                                   class="form-control"
+                                   maxlength="200"
+                                   @bind-Value="request.DeploymentLocation" />
+                        <ValidationMessage For="@(() => request.DeploymentLocation)" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="category" class="form-label">
+                            Sensor category
+                        </label>
+                        <InputSelect id="category"
+                                     class="form-select"
+                                     @bind-Value="request.Category">
+                            <option value="">Select a category</option>
+                            @foreach (var category in Enum.GetValues<SensorCategory>())
+                            {
+                                <option value="@category">
+                                    @CategoryLabel(category)
+                                </option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => request.Category)" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="dataType" class="form-label">
+                            Telemetry data type
+                        </label>
+                        <InputSelect id="dataType"
+                                     class="form-select"
+                                     @bind-Value="request.DataType">
+                            <option value="">Select a data type</option>
+                            @foreach (var dataType in Enum.GetValues<TelemetryDataType>())
+                            {
+                                <option value="@dataType">@dataType</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => request.DataType)" />
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            @(isSaving ? "Registering..." : "Register sensor")
+                        </button>
+                    </div>
+                </div>
+            </fieldset>
+        </EditForm>
+    </ExpandableSection>
+
+    <ExpandableSection Title="Load Simulation Data">
         <DemoDataPanel IsBusy="@(isLoading || isSaving)"
-                   OnLoaded="LoadSensorsAsync" />
+                       OnLoaded="LoadSensorsAsync" />
+    </ExpandableSection>
 
     <SensorDirectory Sensors="@sensors"
                      IsLoading="@isLoading"
@@ -233,9 +232,7 @@
     public sealed class ApiProblem
     {
         public string? Title { get; set; }
-
         public string? Detail { get; set; }
-
         public Dictionary<string, string[]>? Errors { get; set; }
     }
 }
