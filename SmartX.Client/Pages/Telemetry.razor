@@ -1,4 +1,5 @@
-﻿@page "/sensors/{SensorId:guid}/telemetry"
+﻿
+@page "/sensors/{SensorId:guid}/telemetry"
 @using System.Globalization
 @using SmartX.Shared.Models
 @using SmartX.Shared.Requests
@@ -33,7 +34,7 @@
 
         <section class="card mb-4">
             <div class="card-body">
-                <h2 class="h5">Submit a reading</h2>
+                <h2 class="h5">Submit a Reading</h2>
 
                 @if (!string.IsNullOrWhiteSpace(submitMessage))
                 {
@@ -42,7 +43,8 @@
                     </div>
                 }
 
-                <form @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+                <form @onsubmit="SubmitAsync"
+                      @onsubmit:preventDefault>
                     <fieldset disabled="@isSaving">
                         <div class="mb-3">
                             <label for="readingValue" class="form-label">
@@ -83,6 +85,7 @@
                                     break;
                             }
                         </div>
+
                         <div class="mb-3">
                             <label for="readingPriority" class="form-label">
                                 Priority
@@ -96,6 +99,7 @@
                                 <option value="@TelemetryPriority.Critical">Critical</option>
                             </select>
                         </div>
+
                         <button type="submit" class="btn btn-primary">
                             @(isSaving ? "Submitting..." : "Submit reading")
                         </button>
@@ -104,65 +108,77 @@
             </div>
         </section>
 
-        <section class="card">
-            <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <h2 class="h5 mb-0">Reading history (@history.Length)</h2>
-                    <button type="button"
-                            class="btn btn-outline-primary"
-                            disabled="@(isLoadingHistory || isSaving)"
-                            @onclick="LoadHistoryAsync">
-                        @(isLoadingHistory ? "Loading..." : "Refresh history")
-                    </button>
-                </div>
+        <h2 class="h5 mb-3">Telemetry History</h2>
 
-                @if (!string.IsNullOrWhiteSpace(historyError))
-                {
-                    <div class="alert alert-warning" role="alert">
-                        @historyError
-                    </div>
-                }
+        <ExpandableSection Title="@($"Recent Reading History ({history.Length})")">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <p class="text-secondary mb-0">
+                    View the latest readings recorded for this sensor.
+                </p>
 
-                @if (isLoadingHistory)
-                {
-                    <p role="status">Loading telemetry history...</p>
-                }
-                else if (history.Length == 0 && string.IsNullOrWhiteSpace(historyError))
-                {
-                    <p class="text-secondary mb-0">
-                        No readings yet. Submit the first reading above.
-                    </p>
-                }
-
-                @if (history.Length > 0)
-                {
-                    <div class="table-responsive">
-                        <table class="table table-striped align-middle mb-0">
-                            <caption>Telemetry readings, newest first.</caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Value</th>
-                                    <th scope="col">Recorded (UTC)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var reading in history)
-                                {
-                                    <tr>
-                                        <td>@reading.Value</td>
-                                        <td>@reading.RecordedAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                <button type="button"
+                        class="btn btn-outline-primary"
+                        disabled="@(isLoadingHistory || isSaving)"
+                        @onclick="LoadHistoryAsync">
+                    @(isLoadingHistory ? "Loading..." : "Refresh history")
+                </button>
             </div>
-                </section>
 
-        <DailyHistory SensorId="@SensorId"
-                      DataType="@sensor.DataType"
-                      RefreshVersion="@dailyHistoryVersion" />
+            @if (!string.IsNullOrWhiteSpace(historyError))
+            {
+                <div class="alert alert-warning" role="alert">
+                    @historyError
+                </div>
+            }
+
+            @if (isLoadingHistory)
+            {
+                <p role="status">Loading telemetry history...</p>
+            }
+            else if (history.Length == 0 && string.IsNullOrWhiteSpace(historyError))
+            {
+                <p class="text-secondary mb-0">
+                    No readings yet. Submit the first reading above.
+                </p>
+            }
+
+            @if (history.Length > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <caption>Telemetry readings, newest first.</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Value</th>
+                                <th scope="col">Recorded (UTC)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var reading in history)
+                            {
+                                <tr>
+                                    <td>@reading.Value</td>
+                                    <td>
+                                        @reading.RecordedAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </ExpandableSection>
+
+        <ExpandableSection Title="Historical Telemetry Search">
+            <HistoricalRange SensorId="@SensorId"
+                             DataType="@sensor.DataType" />
+        </ExpandableSection>
+
+        <ExpandableSection Title="Daily Telemetry Charts">
+            <DailyHistory SensorId="@SensorId"
+                          DataType="@sensor.DataType"
+                          RefreshVersion="@dailyHistoryVersion" />
+        </ExpandableSection>
     }
 </div>
 
@@ -244,14 +260,14 @@
         try
         {
             history = sensor.DataType switch
-{
-    TelemetryDataType.Float => await ReadHistoryAsync<float>("float"),
-    TelemetryDataType.Integer => await ReadHistoryAsync<int>("integer"),
-    TelemetryDataType.Boolean => await ReadHistoryAsync<bool>("boolean"),
-    _ => throw new InvalidOperationException("Unsupported telemetry data type.")
-};
+            {
+                TelemetryDataType.Float => await ReadHistoryAsync<float>("float"),
+                TelemetryDataType.Integer => await ReadHistoryAsync<int>("integer"),
+                TelemetryDataType.Boolean => await ReadHistoryAsync<bool>("boolean"),
+                _ => throw new InvalidOperationException("Unsupported telemetry data type.")
+            };
 
-dailyHistoryVersion++;
+            dailyHistoryVersion++;
         }
         catch (HttpRequestException exception)
         {
@@ -325,14 +341,14 @@ dailyHistoryVersion++;
                     break;
 
                 case TelemetryDataType.Boolean:
-                if (!bool.TryParse(booleanValue, out var parsedBoolean))
-                {
-                    submitMessage = "Select True or False.";
-                    return;
-                }
+                    if (!bool.TryParse(booleanValue, out var parsedBoolean))
+                    {
+                        submitMessage = "Select True or False.";
+                        return;
+                    }
 
-    saved = await SendReadingAsync("boolean", parsedBoolean);
-    break;
+                    saved = await SendReadingAsync("boolean", parsedBoolean);
+                    break;
 
                 default:
                     submitMessage = "This telemetry data type is unsupported.";
@@ -346,7 +362,8 @@ dailyHistoryVersion++;
 
             submitMessageClass = "alert-success";
             submitMessage = $"{selectedPriority} reading saved successfully.";
-            selectedPriority = TelemetryPriority.Normal; floatValue = null;
+            selectedPriority = TelemetryPriority.Normal;
+            floatValue = null;
             integerValue = null;
             booleanValue = null;
 

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿
+using System.Diagnostics;
 using SmartX.Shared.Models;
 using SmartX.Shared.Requests;
 
@@ -15,7 +16,6 @@ public sealed class DemoDataSeeder
     private readonly TelemetryStore<bool> booleanStore;
     private readonly object syncRoot = new();
 
-    //returns previous result to avoid adding demo data again
     private DemoSeedResult? completedResult;
 
     public DemoDataSeeder(
@@ -32,7 +32,6 @@ public sealed class DemoDataSeeder
 
     public DemoSeedResult Seed()
     {
-
         lock (syncRoot)
         {
             if (completedResult is not null)
@@ -42,6 +41,7 @@ public sealed class DemoDataSeeder
 
             var stopwatch = Stopwatch.StartNew();
             var random = new Random(2026);
+
             var today = new DateTimeOffset(
                 DateTime.UtcNow.Date,
                 TimeSpan.Zero);
@@ -74,15 +74,18 @@ public sealed class DemoDataSeeder
                     _ => "VALVE"
                 };
 
-                var sensor = registry.Register(new RegisterSensorRequest
-                {
-                    DeviceIdentifier =
-                        $"SIM-{runIdentifier}-{prefix}-{sensorIndex + 1:D4}",
-                    DeploymentLocation =
-                        $"Facility {sensorIndex / 100 + 1}, Greenhouse {sensorIndex % 10 + 1}",
-                    Category = category,
-                    DataType = dataType
-                }) ?? throw new InvalidOperationException(
+                var sensor = registry.Register(
+                    new RegisterSensorRequest
+                    {
+                        DeviceIdentifier =
+                            $"SIM-{runIdentifier}-{prefix}-{sensorIndex + 1:D4}",
+                        DeploymentLocation =
+                            $"Facility {sensorIndex / 100 + 1}, Greenhouse {sensorIndex % 10 + 1}",
+                        Category = category,
+                        DataType = dataType
+                    },
+                    persistent: false
+                ) ?? throw new InvalidOperationException(
                     "A simulated device identifier is already registered.");
 
                 readingsCreated += typeIndex switch
@@ -138,8 +141,8 @@ public sealed class DemoDataSeeder
 
         for (var dayIndex = 0; dayIndex < DayCount; dayIndex++)
         {
-            // uses different numbers of readings each day to test the jagged arrays
             var readingCount = 20 + (sensorIndex + dayIndex) % 11;
+
             var dayStart = today.AddDays(dayIndex - DayCount);
 
             batches[dayIndex] = new TelemetryPacket<T>[readingCount];

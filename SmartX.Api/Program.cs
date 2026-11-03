@@ -1,3 +1,4 @@
+
 using SmartX.Shared.Models;
 using SmartX.Api.Endpoints;
 using SmartX.Api.Services;
@@ -6,18 +7,25 @@ using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// these share the in-memory stores across request for this API process
 builder.Services.AddOpenApi();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("SmartX");
 
+var persistencePath = Path.Combine(
+    builder.Environment.ContentRootPath,
+    "Data",
+    "network.json");
+
+builder.Services.AddSingleton(
+    new NetworkPersistenceStore(persistencePath));
+
 builder.Services.AddSingleton<SensorRegistry>();
+
+builder.Services.AddSingleton<MeshTopologyService>();
 
 builder.Services.AddSingleton<DeploymentValidator>();
 
-// JSON nesting includes child arrays, so it allows more levels
-// than the tree validators depth limit
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.MaxDepth = 256;
@@ -26,9 +34,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddSingleton<SensorAttachmentStore>();
 
 builder.Services.AddSingleton<TelemetryStore<float>>();
-
 builder.Services.AddSingleton<TelemetryStore<int>>();
-
 builder.Services.AddSingleton<TelemetryStore<bool>>();
 
 builder.Services.AddSingleton<DemoDataSeeder>();
@@ -37,7 +43,6 @@ builder.Services.AddSingleton<MonitoringService>();
 
 builder.Services.AddCors(options =>
 {
-    // the browse client runs on a separate HTTPS during local dev
     options.AddPolicy("Dashboard", policy =>
     {
         policy.WithOrigins("https://localhost:7102")
@@ -59,7 +64,6 @@ builder.Services.AddHostedService<TelemetryQueue<int>>(
     services => services.GetRequiredService<TelemetryQueue<int>>());
 
 builder.Services.AddHostedService<TelemetryQueue<bool>>(
-
     services => services.GetRequiredService<TelemetryQueue<bool>>());
 
 builder.Services.AddSingleton<AlertService>();
@@ -128,7 +132,7 @@ app.MapGet(
         });
     });
 
-app.MapSensorEndpoints(); 
+app.MapSensorEndpoints();
 
 app.MapTelemetryEndpoints();
 
@@ -138,12 +142,15 @@ app.MapDeploymentEndpoints();
 
 app.MapDemoEndpoints();
 
+app.MapMeshTopologyEndpoints();
+
 app.MapGet(
     "/api/monitoring",
     (MonitoringService monitoring) =>
     {
         return Results.Ok(monitoring.GetSnapshot());
     });
+
 app.MapCommandEndpoints();
 
 app.MapGet("/api/alerts", (AlertService alerts) =>
@@ -155,7 +162,6 @@ app.MapGet("/api/activities", (ActivityService activities) =>
 {
     return Results.Ok(activities.GetHistory());
 });
-
 
 app.MapPost("/api/activities/search", IResult (
     RecordSearchRequest request,
@@ -179,7 +185,7 @@ app.MapPost("/api/activities/search", IResult (
             message = "Search terms cannot exceed 100 characters."
         });
     }
-    // Capture active issues during searc
+
     var conditions = monitoring.GetSnapshot().Sensors
         .Where(sensor => sensor.State is "Warning" or "Stale")
         .ToArray();
@@ -198,12 +204,11 @@ app.MapPost("/api/activities/search", IResult (
     });
 });
 
-
-app.MapGet("/api/recommendations",
+app.MapGet(
+    "/api/recommendations",
     (RecommendationService recommendations) =>
     {
         return Results.Ok(recommendations.GetRecommendations());
     });
-
 
 app.Run();

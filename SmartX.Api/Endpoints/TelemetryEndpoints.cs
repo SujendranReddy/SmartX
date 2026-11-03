@@ -1,4 +1,5 @@
-﻿using SmartX.Api.Services;
+﻿
+using SmartX.Api.Services;
 using SmartX.Shared.Models;
 using SmartX.Shared.Requests;
 
@@ -13,7 +14,6 @@ public static class TelemetryEndpoints
         MapTelemetryType<bool>(app, "boolean", TelemetryDataType.Boolean);
     }
 
-    // Shares the route setup while keeping request & storage typed for each reading type
     private static void MapTelemetryType<T>(
         WebApplication app,
         string route,
@@ -62,7 +62,11 @@ public static class TelemetryEndpoints
                 return Results.BadRequest("Choose a valid telemetry priority.");
             }
 
-            var packet = await queue.EnqueueAsync(sensorId,request.Value.Value,request.Priority);
+            var packet = await queue.EnqueueAsync(
+                sensorId,
+                request.Value.Value,
+                request.Priority);
+
             return Results.Ok(packet);
         });
 
@@ -76,16 +80,26 @@ public static class TelemetryEndpoints
                 sensorId,
                 expectedDataType);
 
-            if (sensorError is not null)
-            {
-                return sensorError;
-            }
-
-            return Results.Ok(store.GetHistory(sensorId));
+            return sensorError ?? Results.Ok(store.GetHistory(sensorId));
         });
 
         group.MapGet("/daily", IResult (
             Guid sensorId,
+            SensorRegistry registry,
+            TelemetryStore<T> store) =>
+        {
+            var sensorError = ValidateSensor(
+                registry,
+                sensorId,
+                expectedDataType);
+
+            return sensorError ?? Results.Ok(store.GetDailyHistory(sensorId));
+        });
+
+        group.MapGet("/range", IResult (
+            Guid sensorId,
+            DateTimeOffset from,
+            DateTimeOffset to,
             SensorRegistry registry,
             TelemetryStore<T> store) =>
         {
@@ -99,7 +113,16 @@ public static class TelemetryEndpoints
                 return sensorError;
             }
 
-            return Results.Ok(store.GetDailyHistory(sensorId));
+            if (from > to)
+            {
+                return Results.ValidationProblem(
+                    new Dictionary<string, string[]>
+                    {
+                        ["from"] = ["The start must not be after the end."]
+                    });
+            }
+
+            return Results.Ok(store.GetRange(sensorId, from, to));
         });
     }
 

@@ -1,0 +1,335 @@
+﻿@using System.Globalization
+@using System.Net.Http.Json
+@using System.Text.Json
+@using SmartX.Shared.Models
+@inject HttpClient Http
+
+<section class="card mt-4">
+    <div class="card-body">
+        <h2 class="h5 mb-2">Historical Telemetry Search</h2>
+
+        <p class="text-secondary">
+            Select a date and time range to view historical sensor readings.
+        </p>
+
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    @onclick="() => SetPreset(1)">
+                Today
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    @onclick="() => SetPreset(7)">
+                Last 7 Days
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    @onclick="() => SetPreset(30)">
+                Last 30 Days
+            </button>
+        </div>
+
+        <form @onsubmit="SearchAsync" @onsubmit:preventDefault>
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                    <label for="rangeStart"
+                           class="form-label fw-semibold">
+                        From Date
+                    </label>
+
+                    <input id="rangeStart"
+                           type="date"
+                           class="form-control"
+                           required
+                           @bind="startDate"
+                           @bind:format="yyyy-MM-dd" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label for="rangeEnd"
+                           class="form-label fw-semibold">
+                        To Date
+                    </label>
+
+                    <input id="rangeEnd"
+                           type="date"
+                           class="form-control"
+                           required
+                           @bind="endDate"
+                           @bind:format="yyyy-MM-dd" />
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold">
+                        From Time (UTC)
+                    </label>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <select class="form-select"
+                                aria-label="From hour"
+                                @bind="startHour">
+                            @for (var hour = 0; hour < 24; hour++)
+                            {
+                                <option value="@hour">
+                                    @hour.ToString("D2")
+                                </option>
+                            }
+                        </select>
+
+                        <span>:</span>
+
+                        <select class="form-select"
+                                aria-label="From minute"
+                                @bind="startMinute">
+                            @for (var minute = 0; minute < 60; minute++)
+                            {
+                                <option value="@minute">
+                                    @minute.ToString("D2")
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold">
+                        To Time (UTC)
+                    </label>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <select class="form-select"
+                                aria-label="To hour"
+                                @bind="endHour">
+                            @for (var hour = 0; hour < 24; hour++)
+                            {
+                                <option value="@hour">
+                                    @hour.ToString("D2")
+                                </option>
+                            }
+                        </select>
+
+                        <span>:</span>
+
+                        <select class="form-select"
+                                aria-label="To minute"
+                                @bind="endMinute">
+                            @for (var minute = 0; minute < 60; minute++)
+                            {
+                                <option value="@minute">
+                                    @minute.ToString("D2")
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <p class="small text-secondary">
+                All dates and times use UTC.
+                The search includes the entire selected end minute.
+            </p>
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    disabled="@isLoading">
+                @(isLoading ? "Searching..." : "Search History")
+            </button>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-warning mt-3" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        @if (hasSearched && string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="mt-4">
+                <h3 class="h6">
+                    Search Results (@results.Length readings)
+                </h3>
+
+                @if (results.Length == 0)
+                {
+                    <div class="alert alert-info">
+                        No telemetry readings were found for the selected range.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Value</th>
+                                    <th scope="col">Recorded (UTC)</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var reading in results)
+                                {
+                                    <tr>
+                                        <td>@reading.Value</td>
+                                        <td>
+                                            @reading.RecordedAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public Guid SensorId { get; set; }
+
+    [Parameter]
+    public TelemetryDataType DataType { get; set; }
+
+    private DateTime startDate = DateTime.UtcNow.Date.AddDays(-6);
+    private DateTime endDate = DateTime.UtcNow.Date;
+
+    private int startHour;
+    private int startMinute;
+    private int endHour = 23;
+    private int endMinute = 59;
+
+    private HistoryRow[] results = [];
+    private string? errorMessage;
+    private bool isLoading;
+    private bool hasSearched;
+
+    private void SetPreset(int days)
+    {
+        endDate = DateTime.UtcNow.Date;
+        startDate = endDate.AddDays(-(days - 1));
+
+        startHour = 0;
+        startMinute = 0;
+        endHour = 23;
+        endMinute = 59;
+
+        errorMessage = null;
+        hasSearched = false;
+        results = [];
+    }
+
+    private async Task SearchAsync()
+    {
+        if (isLoading)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        hasSearched = false;
+        results = [];
+
+        var fromDateTime = startDate.Date
+            .AddHours(startHour)
+            .AddMinutes(startMinute);
+
+        var toDateTime = endDate.Date
+            .AddHours(endHour)
+            .AddMinutes(endMinute)
+            .AddMinutes(1)
+            .AddTicks(-1);
+
+        if (fromDateTime > toDateTime)
+        {
+            errorMessage = "The start date and time cannot be after the end date and time.";
+            return;
+        }
+
+        var from = new DateTimeOffset(
+            DateTime.SpecifyKind(fromDateTime, DateTimeKind.Utc));
+
+        var to = new DateTimeOffset(
+            DateTime.SpecifyKind(toDateTime, DateTimeKind.Utc));
+
+        var fromQuery = Uri.EscapeDataString(
+            from.ToString("O", CultureInfo.InvariantCulture));
+
+        var toQuery = Uri.EscapeDataString(
+            to.ToString("O", CultureInfo.InvariantCulture));
+
+        isLoading = true;
+
+        try
+        {
+            results = DataType switch
+            {
+                TelemetryDataType.Float =>
+                    await LoadRangeAsync<float>("float", fromQuery, toQuery),
+
+                TelemetryDataType.Integer =>
+                    await LoadRangeAsync<int>("integer", fromQuery, toQuery),
+
+                TelemetryDataType.Boolean =>
+                    await LoadRangeAsync<bool>("boolean", fromQuery, toQuery),
+
+                _ => throw new InvalidOperationException(
+                    "Unsupported telemetry data type.")
+            };
+
+            hasSearched = true;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not retrieve telemetry. Check the API connection.";
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "The search timed out. Please try again.";
+        }
+        catch (JsonException)
+        {
+            errorMessage = "The API returned invalid telemetry data.";
+        }
+        catch (InvalidOperationException)
+        {
+            errorMessage = "This sensor has an unsupported telemetry type.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task<HistoryRow[]> LoadRangeAsync<T>(
+        string route,
+        string from,
+        string to) where T : struct
+    {
+        var url =
+            $"api/sensors/{SensorId}/telemetry/{route}/range?from={from}&to={to}";
+
+        var packets = await Http.GetFromJsonAsync<TelemetryPacket<T>[]>(url)
+            ?? [];
+
+        return packets
+            .OrderBy(packet => packet.RecordedAtUtc)
+            .Select(packet => new HistoryRow(
+                Convert.ToString(
+                    packet.Value,
+                    CultureInfo.InvariantCulture) ?? string.Empty,
+                packet.RecordedAtUtc))
+            .ToArray();
+    }
+
+    private sealed record HistoryRow(
+        string Value,
+        DateTimeOffset RecordedAtUtc);
+}

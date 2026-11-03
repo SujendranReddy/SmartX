@@ -1,13 +1,12 @@
-﻿using SmartX.Shared.Models;
+﻿
+using SmartX.Api.Collections;
+using SmartX.Shared.Models;
 
 namespace SmartX.Api.Services;
 
 public sealed class TelemetryStore<T> where T : struct
 {
-    private readonly Dictionary<
-        Guid,
-        SortedDictionary<DateTimeOffset, List<TelemetryPacket<T>>>> readings = new();
-
+    private readonly Dictionary<Guid, AvlTree<DateTimeOffset, TelemetryPacket<T>>> readings = new();
     private readonly Dictionary<Guid, TelemetryPacket<T>> latestReadings = new();
     private readonly object syncRoot = new();
 
@@ -23,14 +22,11 @@ public sealed class TelemetryStore<T> where T : struct
             };
 
             StorePacket(packet);
-
             return packet;
         }
     }
 
-    public int AddBatch(
-        Guid sensorId,
-        TelemetryPacket<T>[][] batches)
+    public int AddBatch(Guid sensorId, TelemetryPacket<T>[][] batches)
     {
         ArgumentNullException.ThrowIfNull(batches);
 
@@ -91,7 +87,26 @@ public sealed class TelemetryStore<T> where T : struct
         lock (syncRoot)
         {
             return readings.TryGetValue(sensorId, out var timeline)
-                ? timeline.Values.SelectMany(packets => packets).ToArray()
+                ? timeline.GetAll()
+                : [];
+        }
+    }
+
+    public TelemetryPacket<T>[] GetRange(
+        Guid sensorId,
+        DateTimeOffset from,
+        DateTimeOffset to)
+    {
+        if (from > to)
+        {
+            throw new ArgumentException(
+                "The start must not be after the end.", nameof(from));
+        }
+
+        lock (syncRoot)
+        {
+            return readings.TryGetValue(sensorId, out var timeline)
+                ? timeline.GetRange(from, to)
                 : [];
         }
     }
@@ -115,20 +130,11 @@ public sealed class TelemetryStore<T> where T : struct
     {
         if (!readings.TryGetValue(packet.SensorId, out var timeline))
         {
-            timeline = new SortedDictionary<
-                DateTimeOffset,
-                List<TelemetryPacket<T>>>();
-
+            timeline = new AvlTree<DateTimeOffset, TelemetryPacket<T>>();
             readings.Add(packet.SensorId, timeline);
         }
-        // Keep readings with matching timestamps
-        if (!timeline.TryGetValue(packet.RecordedAtUtc, out var packets))
-        {
-            packets = new List<TelemetryPacket<T>>();
-            timeline.Add(packet.RecordedAtUtc, packets);
-        }
 
-        packets.Add(packet);
+        timeline.Add(packet.RecordedAtUtc, packet);
 
         if (!latestReadings.TryGetValue(packet.SensorId, out var latest) ||
             packet.RecordedAtUtc >= latest.RecordedAtUtc)
