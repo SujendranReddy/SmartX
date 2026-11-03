@@ -22,7 +22,10 @@ public sealed class MeshTopologyService
     public const string GatewayId = "SMARTX-GATEWAY";
 
     private readonly SensorRegistry registry;
+    private readonly NetworkPersistenceStore? persistence;
+
     private readonly MeshGraph graph = new();
+
     private readonly HashSet<string> offlineNodes =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -31,7 +34,33 @@ public sealed class MeshTopologyService
     public MeshTopologyService(SensorRegistry registry)
     {
         this.registry = registry;
+
         graph.AddNode(GatewayId);
+    }
+
+    public MeshTopologyService(
+        SensorRegistry registry,
+        NetworkPersistenceStore persistence)
+        : this(registry)
+    {
+        this.persistence = persistence;
+
+        SynchronizeSensors();
+
+        foreach (var connection in persistence.GetConnections())
+        {
+            if (!graph.ContainsNode(connection.Source) ||
+                !graph.ContainsNode(connection.Target))
+            {
+                throw new InvalidDataException(
+                    "A saved network connection references an unknown sensor.");
+            }
+
+            graph.AddConnection(
+                connection.Source,
+                connection.Target,
+                connection.Cost);
+        }
     }
 
     public MeshTopologySnapshot GetSnapshot()
@@ -39,6 +68,7 @@ public sealed class MeshTopologyService
         lock (syncRoot)
         {
             SynchronizeSensors();
+
             return CreateSnapshot();
         }
     }
@@ -51,7 +81,16 @@ public sealed class MeshTopologyService
         lock (syncRoot)
         {
             SynchronizeSensors();
+
             graph.AddConnection(source, target, cost);
+
+            if (persistence is not null &&
+                persistence.IsPersistentNode(source) &&
+                persistence.IsPersistentNode(target))
+            {
+                persistence.SaveConnection(
+                    new MeshConnection(source, target, cost));
+            }
         }
     }
 
