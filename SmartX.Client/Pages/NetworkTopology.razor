@@ -1,5 +1,4 @@
-﻿
-@page "/network-topology"
+﻿@page "/network-topology"
 @using System.Globalization
 @using System.Net.Http.Json
 @using System.Text.Json
@@ -42,7 +41,9 @@
             <div class="col-12 col-md-4">
                 <div class="card h-100">
                     <div class="card-body">
-                        <h2 class="h6 text-secondary">Total Network Nodes</h2>
+                        <h2 class="h6 text-secondary">
+                            Total Network Nodes
+                        </h2>
                         <div class="fs-2 fw-bold">
                             @topology.Nodes.Length
                         </div>
@@ -53,7 +54,9 @@
             <div class="col-12 col-md-4">
                 <div class="card h-100">
                     <div class="card-body">
-                        <h2 class="h6 text-secondary">Reachable Sensors</h2>
+                        <h2 class="h6 text-secondary">
+                            Reachable Sensors
+                        </h2>
                         <div class="fs-2 fw-bold text-success">
                             @topology.Nodes.Count(node => !node.IsGateway && node.IsReachable)
                         </div>
@@ -64,7 +67,9 @@
             <div class="col-12 col-md-4">
                 <div class="card h-100">
                     <div class="card-body">
-                        <h2 class="h6 text-secondary">MST Total Cost</h2>
+                        <h2 class="h6 text-secondary">
+                            MST Total Cost
+                        </h2>
                         <div class="fs-2 fw-bold">
                             @topology.SpanningTree.TotalCost.ToString("0.##", CultureInfo.InvariantCulture)
                         </div>
@@ -77,7 +82,9 @@
             <div class="card-body">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
                     <div>
-                        <h2 class="h5 mb-1">Mesh Network Diagram</h2>
+                        <h2 class="h5 mb-1">
+                            Mesh Network Diagram
+                        </h2>
                         <p class="text-secondary mb-0">
                             Explore sensors and their connections to the central gateway.
                         </p>
@@ -90,7 +97,8 @@
 
                 <div class="row g-3 align-items-end mb-3">
                     <div class="col-12 col-lg-8">
-                        <label for="sensorSearch" class="form-label fw-semibold">
+                        <label for="sensorSearch"
+                               class="form-label fw-semibold">
                             Search Sensors
                         </label>
 
@@ -155,6 +163,23 @@
                     </span>
                 </div>
 
+                <div class="alert alert-info mb-3">
+                    <strong>Currently displaying:</strong>
+
+                    @if (filteredSensorCount > 0)
+                    {
+                        <span>
+                            Sensors @(currentPage * PageSize + 1) -
+                            @(currentPage * PageSize + visibleSensors.Length)
+                            of @filteredSensorCount
+                        </span>
+                    }
+                    else
+                    {
+                        <span>No matching sensors</span>
+                    }
+                </div>
+
                 <svg viewBox="0 0 800 430"
                      class="w-100 border rounded bg-light"
                      role="img"
@@ -203,9 +228,19 @@
                             stroke="white"
                             stroke-width="3" />
 
-                    @(SvgLabel(400, 215, "G", 17, "#ffffff"))
+                    @(SvgLabel(
+                        400,
+                        215,
+                        "G",
+                        17,
+                        "#ffffff"))
 
-                    @(SvgLabel(400, 256, "GATEWAY", 14, "#212529"))
+                    @(SvgLabel(
+                        400,
+                        256,
+                        "GATEWAY",
+                        14,
+                        "#212529"))
 
                     @for (var i = 0; i < visibleSensors.Length; i++)
                     {
@@ -223,7 +258,7 @@
                             @(SvgLabel(
                                 position.X,
                                 position.Y + 5,
-                                $"S{i + 1}",
+                                $"S{currentPage * PageSize + i + 1}",
                                 14,
                                 "#ffffff"))
                         }
@@ -246,7 +281,9 @@
 
         <section class="card mb-4">
             <div class="card-body">
-                <h2 class="h5">Displayed Network Nodes</h2>
+                <h2 class="h5">
+                    Displayed Network Nodes
+                </h2>
 
                 <p class="text-secondary">
                     Sensor labels correspond to the nodes shown in the diagram.
@@ -271,7 +308,9 @@
                                 <td>@topology.GatewayId</td>
                                 <td>Central Gateway</td>
                                 <td>
-                                    <span class="badge bg-success">Reachable</span>
+                                    <span class="badge bg-success">
+                                        Reachable
+                                    </span>
                                 </td>
                             </tr>
 
@@ -281,10 +320,15 @@
 
                                 <tr>
                                     <td>
-                                        <strong>@($"S{i + 1}")</strong>
+                                        <strong>
+                                            @($"S{currentPage * PageSize + i + 1}")
+                                        </strong>
                                     </td>
+
                                     <td>@sensor.Id</td>
+
                                     <td>@sensor.DeploymentLocation</td>
+
                                     <td>
                                         @if (sensor.IsReachable)
                                         {
@@ -320,7 +364,9 @@
 
         <section class="card">
             <div class="card-body">
-                <h2 class="h5">Minimum Spanning Tree</h2>
+                <h2 class="h5">
+                    Minimum Spanning Tree
+                </h2>
 
                 <p class="text-secondary">
                     Prim's algorithm calculates a minimum-cost connection tree
@@ -485,16 +531,23 @@
             .Where(node => !node.IsGateway)
             .Where(node =>
                 string.IsNullOrEmpty(filter) ||
-                node.Id.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                node.Id.Contains(
+                    filter,
+                    StringComparison.OrdinalIgnoreCase) ||
                 node.DeploymentLocation.Contains(
                     filter,
                     StringComparison.OrdinalIgnoreCase))
-            .OrderBy(node => node.Id, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(
+                node => node.Id,
+                StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         filteredSensorCount = filtered.Length;
 
-        currentPage = Math.Clamp(currentPage, 0, TotalPages - 1);
+        currentPage = Math.Clamp(
+            currentPage,
+            0,
+            TotalPages - 1);
 
         visibleSensors = filtered
             .Skip(currentPage * PageSize)
@@ -517,8 +570,11 @@
             var angle =
                 (2 * Math.PI * i / visibleSensors.Length) - Math.PI / 2;
 
-            var x = 400 + (int)Math.Round(Math.Cos(angle) * 280);
-            var y = 210 + (int)Math.Round(Math.Sin(angle) * 150);
+            var x = 400 + (int)Math.Round(
+                Math.Cos(angle) * 280);
+
+            var y = 210 + (int)Math.Round(
+                Math.Sin(angle) * 150);
 
             positions[visibleSensors[i].Id] = new NodePosition(x, y);
         }
