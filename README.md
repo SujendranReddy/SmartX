@@ -5,7 +5,9 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 ## Technology
 - .NET 10 and ASP.NET Core Minimal APIs
 - Blazor WebAssembly & Bootstrap styling
-- No database or physical hardware, in-memory collections
+- No physical hardware or database required
+- JSON storage for registered sensors and network connections
+- In-memory telemetry processing and simulated data
 
 ### SmartX.Api
 - API endpoints and validation
@@ -13,6 +15,10 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 - Monitoring and alerts
 - Device commands and activity tracking
 - Recommendation engine
+- AVL tree for historical telemetry
+- Graph traversal and minimum spanning tree routing
+- Sensor failure detection and automatic rerouting
+- Persistent sensor and network connection storage
 
 ### SmartX.Client
 - Browser dashboard and forms
@@ -20,6 +26,9 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 - Device controls and Undo
 - Suggested actions
 - Attachments
+- Network topology visualisation
+- Sensor route inspection
+- Sensor failure and recovery controls
 
 ### SmartX.Shared
 - Models
@@ -28,7 +37,7 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 
 ### SmartX.Tests
 - xUnit automated tests
-- Data structure and command testing
+- Data structure, routing, persistence and command testing
 
 ## Run Locally
 
@@ -66,7 +75,9 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 ### Notes
 - API health check: https://localhost:7101/api/health
 - OpenAPI document: https://localhost:7101/openapi/v1.json
-- Application data resets when the API restarts.
+- Manually registered sensors and network connections are saved in SmartX.Api/Data/network.json.
+- Telemetry readings and simulated demo sensors reset when the API restarts.
+- The network.json file is excluded from GitHub.
 - Stop each application with Ctrl+C in its terminal.
 
 ## Features
@@ -83,6 +94,14 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 - Validate nested deployment structures
 - Upload and download protected sensor attachments
 - Generate demo data for testing
+- Search historical telemetry using an AVL tree and date ranges
+- Visualise sensor connections using a weighted graph
+- Detect reachable and unreachable sensors using BFS
+- Calculate minimum spanning trees using Prim's algorithm
+- Inspect sensor routes and their total connection costs
+- Simulate sensor failures and automatic network rerouting
+- Restore failed sensors and recalculate network routes
+- Save registered sensors and connections across API restarts
 
 ## Testing
 Automated tests are implemented using xUnit.
@@ -95,6 +114,26 @@ The 13 tests cover priority queues, FIFO processing, Stack-based Undo, dictionar
 
 All 13 tests passed during final testing.
 
+## Part 3 Algorithms
+Smart-X uses an AVL tree to store and search old sensor readings. The tree keeps the data organised so it can be searched quickly.
+
+The network uses a weighted graph to show how sensors are connected. BFS is used to check which sensors can reach the gateway and which cannot.
+
+Prim's algorithm is used to find the connections with the lowest overall cost. Smart-X uses these connections to find routes between sensors and the gateway.
+
+If a sensor goes offline, Smart-X checks the network again and finds another route if one is available.
+
+## Testing
+
+Smart-X uses xUnit to test the application.
+
+The tests check sensor readings, queues, AVL trees, network connections, routing, sensor failures, saved data and device commands.
+
+To run the tests, use:
+
+dotnet test SmartX.slnx
+
+All 52 tests passed during final testing.
 ## Demo
 1. Register an Environmental sensor with the Float data type.
 2. Submit readings using Normal, High and Critical priorities. Use `10` for Critical and check Live Monitoring for a Warning.
@@ -108,6 +147,12 @@ All 13 tests passed during final testing.
 10. Load the demo dataset to test searching, pagination and historical readings.
 11. Run TelemetryQueueTests to verify FIFO and priority processing and DataStructureTests to verify dictionary lookups and sorted history.
 12. Run all 13 automated tests using dotnet test SmartX.Tests/SmartX.Tests.csproj.
+13. Open Network Topology and view the sensor connections.
+14. Connect sensors to the gateway and check their routes.
+15. Take a sensor offline and check if another route is found
+16. Bring the sensor back online and check if the original route works again.
+17. Restart the API and check that registered sensors and connections are still saved.
+18. Run all 52 tests using dotnet test SmartX.slnx.
 
 ## YouTube
 Part 1:
