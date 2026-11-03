@@ -28,7 +28,8 @@ public class MeshFailureRecoveryTests
         var snapshot = topology.SetSensorAvailability("SENSOR-A", false);
 
         var failedSensor = Assert.Single(
-            snapshot.Nodes.Where(node => node.Id == "SENSOR-A"));
+    snapshot.Nodes,
+    node => node.Id == "SENSOR-A");
 
         Assert.False(failedSensor.IsOnline);
         Assert.False(failedSensor.IsReachable);
@@ -58,7 +59,8 @@ public class MeshFailureRecoveryTests
         var restored = topology.SetSensorAvailability("SENSOR-A", true);
 
         var sensor = Assert.Single(
-            restored.Nodes.Where(node => node.Id == "SENSOR-A"));
+    restored.Nodes,
+    node => node.Id == "SENSOR-A");
 
         Assert.True(sensor.IsOnline);
         Assert.True(sensor.IsReachable);
@@ -91,7 +93,8 @@ public class MeshFailureRecoveryTests
         var failed = topology.SetSensorAvailability("SENSOR-A", false);
 
         var sensorB = Assert.Single(
-            failed.Nodes.Where(node => node.Id == "SENSOR-B"));
+    failed.Nodes,
+    node => node.Id == "SENSOR-B");
 
         Assert.True(sensorB.IsOnline);
         Assert.False(sensorB.IsReachable);
