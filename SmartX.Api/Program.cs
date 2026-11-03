@@ -14,6 +14,8 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddSingleton<SensorRegistry>();
 
+builder.Services.AddSingleton<MeshTopologyService>();
+
 builder.Services.AddSingleton<DeploymentValidator>();
 
 // JSON nesting includes child arrays, so it allows more levels
@@ -137,6 +139,8 @@ app.MapSensorAttachmentEndpoints();
 app.MapDeploymentEndpoints();
 
 app.MapDemoEndpoints();
+
+app.MapMeshTopologyEndpoints();
 
 app.MapGet(
     "/api/monitoring",
