@@ -1,4 +1,4 @@
-﻿@page "/network-topology"
+@page "/network-topology"
 @using System.Globalization
 @using System.Net.Http.Json
 @using System.Text.Json
@@ -77,6 +77,8 @@
                 </div>
             </div>
         </div>
+
+        <MeshConnectionManager NodeIds="@topology.Nodes.Select(node => node.Id).ToArray()" OnConnectionSaved="LoadTopologyAsync" />
 
         <section class="card mb-4">
             <div class="card-body">

@@ -1,0 +1,240 @@
+﻿@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components
+@inject HttpClient Http
+
+<section class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5">Manage Network Connections</h2>
+
+        <p class="text-secondary">
+            Connect sensors to the central gateway or to neighbouring
+            sensors to create a wireless mesh network.
+        </p>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success" role="status">
+                @successMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        <form @onsubmit="SaveConnectionAsync"
+              @onsubmit:preventDefault>
+
+            <div class="row g-3">
+                <div class="col-12 col-lg-5">
+                    <label for="sourceNode"
+                           class="form-label fw-semibold">
+                        Source Node
+                    </label>
+
+                    <input id="sourceNode"
+                           type="text"
+                           class="form-control"
+                           list="meshNodeOptions"
+                           placeholder="Enter or select a node"
+                           required
+                           @bind="sourceNode" />
+
+                    <div class="form-text">
+                        Select the gateway or an existing sensor.
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-5">
+                    <label for="targetNode"
+                           class="form-label fw-semibold">
+                        Target Node
+                    </label>
+
+                    <input id="targetNode"
+                           type="text"
+                           class="form-control"
+                           list="meshNodeOptions"
+                           placeholder="Enter or select a sensor"
+                           required
+                           @bind="targetNode" />
+
+                    <div class="form-text">
+                        Select the sensor you want to connect.
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-2">
+                    <label for="connectionCost"
+                           class="form-label fw-semibold">
+                        Cost
+                    </label>
+
+                    <input id="connectionCost"
+                           type="number"
+                           class="form-control"
+                           min="0.01"
+                           step="any"
+                           required
+                           @bind="connectionCost" />
+
+                    <div class="form-text">
+                        Positive routing cost.
+                    </div>
+                </div>
+            </div>
+
+            <datalist id="meshNodeOptions">
+                @foreach (var node in NodeIds.OrderBy(
+                    id => id,
+                    StringComparer.OrdinalIgnoreCase))
+                {
+                    <option value="@node"></option>
+                }
+            </datalist>
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button type="submit"
+                        class="btn btn-primary"
+                        disabled="@(isSaving || NodeIds.Length < 2)">
+                    @(isSaving ? "Saving..." : "Add Connection")
+                </button>
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        disabled="@isSaving"
+                        @onclick="ClearForm">
+                    Clear
+                </button>
+            </div>
+        </form>
+
+        <div class="alert alert-info mt-4 mb-0">
+            Connections are bidirectional. Adding an existing
+            connection updates its cost. The minimum spanning tree
+            is recalculated using the available network connections.
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string[] NodeIds { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnConnectionSaved { get; set; }
+
+    private string sourceNode = "SMARTX-GATEWAY";
+    private string targetNode = string.Empty;
+
+    private double connectionCost = 1;
+
+    private bool isSaving;
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    private async Task SaveConnectionAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        successMessage = null;
+        errorMessage = null;
+
+        var source = sourceNode.Trim();
+        var target = targetNode.Trim();
+
+        if (string.IsNullOrWhiteSpace(source) ||
+            string.IsNullOrWhiteSpace(target))
+        {
+            errorMessage = "Select both a source and target node.";
+            return;
+        }
+
+        if (!NodeIds.Contains(
+                source,
+                StringComparer.OrdinalIgnoreCase) ||
+            !NodeIds.Contains(
+                target,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            errorMessage = "Both nodes must exist in the registered network.";
+            return;
+        }
+
+        if (string.Equals(
+                source,
+                target,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            errorMessage = "A node cannot connect to itself.";
+            return;
+        }
+
+        if (!double.IsFinite(connectionCost) ||
+            connectionCost <= 0)
+        {
+            errorMessage = "Connection cost must be greater than zero.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            var request = new MeshConnectionRequest(
+                source,
+                target,
+                connectionCost);
+
+            using var response = await Http.PostAsJsonAsync(
+                "api/mesh/connections",
+                request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage =
+                    $"Unable to save connection. HTTP {(int)response.StatusCode}.";
+                return;
+            }
+
+            successMessage =
+                $"Connection saved: {source} to {target}.";
+
+            await OnConnectionSaved.InvokeAsync();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Cannot reach the Smart-X API.";
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "The request timed out. Please try again.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ClearForm()
+    {
+        sourceNode = "SMARTX-GATEWAY";
+        targetNode = string.Empty;
+        connectionCost = 1;
+
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private sealed record MeshConnectionRequest(
+        string Source,
+        string Target,
+        double Cost);
+}
