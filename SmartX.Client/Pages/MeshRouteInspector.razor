@@ -1,0 +1,231 @@
+﻿@using System.Globalization
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject HttpClient Http
+
+<section class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5">Inspect Sensor Routing</h2>
+
+        <p class="text-secondary">
+            Select a registered sensor to view its route through the
+            minimum spanning tree to the central gateway.
+        </p>
+
+        <form @onsubmit="InspectRouteAsync"
+              @onsubmit:preventDefault>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-lg-9">
+                    <label for="routeSensor"
+                           class="form-label fw-semibold">
+                        Sensor Identifier
+                    </label>
+
+                    <input id="routeSensor"
+                           type="text"
+                           class="form-control"
+                           list="routeSensorOptions"
+                           placeholder="Enter or select a sensor identifier"
+                           required
+                           @bind="selectedSensor" />
+
+                    <datalist id="routeSensorOptions">
+                        @foreach (var id in SensorIds.OrderBy(
+                            id => id,
+                            StringComparer.OrdinalIgnoreCase))
+                        {
+                            <option value="@id"></option>
+                        }
+                    </datalist>
+                </div>
+
+                <div class="col-12 col-lg-3">
+                    <button type="submit"
+                            class="btn btn-primary w-100"
+                            disabled="@(isLoading || SensorIds.Length == 0)">
+                        @(isLoading ? "Finding Route..." : "Find Route")
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger mt-3" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        @if (routeResult is not null)
+        {
+            <div class="mt-4">
+                <h3 class="h6">Routing Results</h3>
+
+                <p>
+                    <strong>Sensor:</strong> @routeResult.SensorId
+                </p>
+
+                <p>
+                    <strong>Gateway:</strong> @routeResult.GatewayId
+                </p>
+
+                @if (routeResult.IsReachable)
+                {
+                    <div class="alert alert-success">
+                        This sensor can reach the central gateway.
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h4 class="h6 text-secondary">
+                                        Total Route Cost
+                                    </h4>
+
+                                    <div class="fs-3 fw-bold">
+                                        @routeResult.TotalCost?.ToString(
+                                            "0.##",
+                                            CultureInfo.InvariantCulture)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h4 class="h6 text-secondary">
+                                        Number of Hops
+                                    </h4>
+
+                                    <div class="fs-3 fw-bold">
+                                        @Math.Max(0, routeResult.Path.Length - 1)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 class="h6">Route to Gateway</h4>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        @for (var i = 0; i < routeResult.Path.Length; i++)
+                        {
+                            <span class="badge @(i == routeResult.Path.Length - 1 ? "bg-primary" : "bg-success") p-2">
+                                @routeResult.Path[i]
+                            </span>
+
+                            @if (i < routeResult.Path.Length - 1)
+                            {
+                                <span aria-hidden="true">→</span>
+                            }
+                        }
+                    </div>
+
+                    <p class="small text-secondary">
+                        The route follows the minimum spanning tree
+                        calculated by Prim's algorithm.
+                    </p>
+                }
+                else
+                {
+                    <div class="alert alert-warning">
+                        This sensor is disconnected from the gateway.
+                        No available route was found.
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string[] SensorIds { get; set; } = [];
+
+    private string selectedSensor = string.Empty;
+    private string? errorMessage;
+
+    private bool isLoading;
+
+    private MeshRouteResponse? routeResult;
+
+    private async Task InspectRouteAsync()
+    {
+        if (isLoading)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        routeResult = null;
+
+        var sensorId = selectedSensor.Trim();
+
+        if (!SensorIds.Contains(
+            sensorId,
+            StringComparer.OrdinalIgnoreCase))
+        {
+            errorMessage = "Select a valid registered sensor.";
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            var url =
+                $"api/mesh/route?sensorId={Uri.EscapeDataString(sensorId)}";
+
+            using var response = await Http.GetAsync(url);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                errorMessage = "The selected sensor was not found.";
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage =
+                    $"Unable to retrieve the route. HTTP {(int)response.StatusCode}.";
+                return;
+            }
+
+            routeResult = await response.Content
+                .ReadFromJsonAsync<MeshRouteResponse>();
+
+            if (routeResult is null)
+            {
+                errorMessage = "The API returned an empty route.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Cannot reach the Smart-X API.";
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "The request timed out. Please try again.";
+        }
+        catch (JsonException)
+        {
+            errorMessage = "The API returned invalid routing information.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public sealed class MeshRouteResponse
+    {
+        public string SensorId { get; set; } = string.Empty;
+        public string GatewayId { get; set; } = string.Empty;
+        public string[] Path { get; set; } = [];
+        public double? TotalCost { get; set; }
+        public bool IsReachable { get; set; }
+    }
+}

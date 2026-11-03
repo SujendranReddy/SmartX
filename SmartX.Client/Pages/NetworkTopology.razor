@@ -80,6 +80,8 @@
 
         <MeshConnectionManager NodeIds="@topology.Nodes.Select(node => node.Id).ToArray()" OnConnectionSaved="LoadTopologyAsync" />
 
+        <MeshRouteInspector SensorIds="@topology.Nodes.Where(node => !node.IsGateway).Select(node => node.Id).ToArray()" />
+
         <section class="card mb-4">
             <div class="card-body">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
