@@ -30,7 +30,7 @@ public sealed class TelemetryStore<T> where T : struct
     public int AddBatch(Guid sensorId, TelemetryPacket<T>[][] batches)
     {
         ArgumentNullException.ThrowIfNull(batches);
-        / check all readings before saving any of them
+        // check all readings before saving any of them
         var incoming = new List<TelemetryPacket<T>>();
 
         foreach (var batch in batches)
