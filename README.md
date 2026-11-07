@@ -103,16 +103,6 @@ Smart-X is a simulated IoT gateway for registering sensors, submitting telemetry
 - Restore failed sensors and recalculate network routes
 - Save registered sensors and connections across API restarts
 
-## Testing
-Automated tests are implemented using xUnit.
-
-To run the tests:
-- Open Test Explorer in Visual Studio and select Run All Tests.
-- Or run dotnet test SmartX.Tests/SmartX.Tests.csproj.
-
-The 13 tests cover priority queues, FIFO processing, Stack-based Undo, dictionaries, sorted telemetry history and alert management.
-
-All 13 tests passed during final testing.
 
 ## Part 3 Algorithms
 Smart-X uses an AVL tree to store and search old sensor readings. The tree keeps the data organised so it can be searched quickly.
