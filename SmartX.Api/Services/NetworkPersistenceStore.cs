@@ -174,6 +174,7 @@ public sealed class NetworkPersistenceStore
 
         Directory.CreateDirectory(directory);
 
+        // write to a temporary file before replacing the saved network
         var temporaryFile = Path.Combine(
             directory,
             $".network-{Guid.NewGuid():N}.tmp");

@@ -71,7 +71,7 @@ public static class MeshRouting
                 0,
                 true);
         }
-
+        //keep track of the conection leading back to the gateway
         var parents = new Dictionary<string, MeshConnection>(
             StringComparer.OrdinalIgnoreCase);
 
@@ -85,7 +85,7 @@ public static class MeshRouting
         var totalCost = 0d;
 
         path.Add(current);
-
+        //follow the route to the gateway and add up the connection costs
         while (!string.Equals(
             current,
             gateway,

@@ -57,7 +57,7 @@ public sealed class AvlTree<TKey, TValue> where TKey : notnull
             node.Values.Add(value);
             return node;
         }
-
+        // check the height and restore balance after inserting a new node
         UpdateHeight(node);
         var balance = GetBalance(node);
 
@@ -132,7 +132,7 @@ public sealed class AvlTree<TKey, TValue> where TKey : notnull
         {
             return;
         }
-
+        // only search branches that could contin matching readings
         var fromComparison = comparer.Compare(from, node.Key);
         var toComparison = comparer.Compare(to, node.Key);
 

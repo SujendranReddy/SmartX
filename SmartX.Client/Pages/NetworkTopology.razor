@@ -1,4 +1,3 @@
-
 @page "/network-topology"
 @using System.Globalization
 @using System.Net.Http.Json
@@ -198,9 +197,18 @@
                                   stroke-width="4"
                                   stroke-linecap="round" />
 
+                            <rect x="@((source.X + target.X) / 2 - 22)"
+                                  y="@((source.Y + target.Y) / 2 - 15)"
+                                  width="44"
+                                  height="28"
+                                  rx="8"
+                                  fill="#ffffff"
+                                  stroke="#94a3b8"
+                                  stroke-width="1" />
+
                             @(SvgLabel(
                                 (source.X + target.X) / 2,
-                                (source.Y + target.Y) / 2 - 10,
+                                (source.Y + target.Y) / 2 + 4,
                                 connection.Cost.ToString("0.##", CultureInfo.InvariantCulture),
                                 14,
                                 "#166534"))
@@ -252,6 +260,124 @@
                     Full network calculations include all registered sensors.
                     Only connections between visible nodes are drawn.
                 </p>
+            </div>
+        </section>
+
+        <section class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Selected Sensor Connections</h2>
+                        <p class="text-secondary mb-0">
+                            View direct connections, including sensors on other pages.
+                        </p>
+                    </div>
+                    <div>
+                        <label for="focusedSensor" class="form-label fw-semibold">Select Sensor</label>
+                        <select id="focusedSensor"
+                                class="form-select"
+                                value="@focusedSensorId"
+                                disabled="@(visibleSensors.Length == 0)"
+                                @onchange="OnFocusedSensorChanged">
+                            @foreach (var sensor in visibleSensors)
+                            {
+                                <option value="@sensor.Id">@sensor.Id</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                @if (string.IsNullOrWhiteSpace(focusedSensorId))
+                {
+                    <p class="text-secondary mb-0">No sensor selected.</p>
+                }
+                else
+                {
+                    var shownConnections = focusedConnections
+                        .Skip(focusedPage * FocusedPageSize)
+                        .Take(FocusedPageSize)
+                        .ToArray();
+                    var selectedNode = topology.Nodes.FirstOrDefault(node =>
+                        string.Equals(node.Id, focusedSensorId, StringComparison.OrdinalIgnoreCase));
+
+                    <p class="small text-secondary mb-2">
+                        Selected: <strong>@focusedSensorId</strong> · @focusedConnections.Length direct connections
+                    </p>
+
+                    <svg viewBox="0 0 800 330"
+                         class="w-100 border rounded bg-light"
+                         role="img"
+                         aria-label="Direct network connections for the selected sensor">
+                        @for (var i = 0; i < shownConnections.Length; i++)
+                        {
+                            var connection = shownConnections[i];
+                            var neighborId = GetFocusedNeighborId(connection);
+                            var neighbor = topology.Nodes.FirstOrDefault(node =>
+                                string.Equals(node.Id, neighborId, StringComparison.OrdinalIgnoreCase));
+                            var isGateway = string.Equals(neighborId, topology.GatewayId,
+                                StringComparison.OrdinalIgnoreCase);
+                            var point = FocusedNodePosition(i);
+                            var labelX = (400 + point.X) / 2;
+                            var labelY = (165 + point.Y) / 2;
+
+                            <line x1="400" y1="165" x2="@point.X" y2="@point.Y"
+                                  stroke="#64748b" stroke-width="3" stroke-linecap="round" />
+                            <rect x="@(labelX - 22)" y="@(labelY - 15)"
+                                  width="44" height="28" rx="8"
+                                  fill="#ffffff" stroke="#94a3b8" stroke-width="1" />
+                            @(SvgLabel(labelX, labelY + 4,
+                                connection.Cost.ToString("0.##", CultureInfo.InvariantCulture),
+                                14, "#334155"))
+                            <circle cx="@point.X" cy="@point.Y" r="25"
+                                    fill="@(isGateway ? "#1d4ed8" : neighbor?.IsReachable == true ? "#198754" : "#dc3545")"
+                                    stroke="#ffffff" stroke-width="3" />
+                            @(SvgLabel(point.X, point.Y + 5,
+                                isGateway ? "G" : $"N{i + 1}", 15, "#ffffff"))
+                        }
+
+                        <circle cx="400" cy="165" r="30"
+                                fill="@(selectedNode?.IsReachable == true ? "#198754" : "#dc3545")"
+                                stroke="#ffffff" stroke-width="4" />
+                        @(SvgLabel(400, 171, "S", 18, "#ffffff"))
+                    </svg>
+
+                    @if (shownConnections.Length == 0)
+                    {
+                        <p class="small text-secondary mt-3 mb-0">This sensor has no direct connections.</p>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            @for (var i = 0; i < shownConnections.Length; i++)
+                            {
+                                var connection = shownConnections[i];
+                                var neighborId = GetFocusedNeighborId(connection);
+                                var isGateway = string.Equals(neighborId, topology.GatewayId,
+                                    StringComparison.OrdinalIgnoreCase);
+                                var label = isGateway ? "G" : $"N{i + 1}";
+
+                                <span class="badge bg-light text-dark border p-2">
+                                    <strong>@label</strong>: @neighborId (cost @connection.Cost.ToString("0.##", CultureInfo.InvariantCulture))
+                                </span>
+                            }
+                        </div>
+                    }
+
+                    @if (FocusedTotalPages > 1)
+                    {
+                        <div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    disabled="@(focusedPage == 0)" @onclick="PreviousFocusedPage">
+                                Previous
+                            </button>
+                            <span class="small">@(focusedPage + 1) / @FocusedTotalPages</span>
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    disabled="@(focusedPage >= FocusedTotalPages - 1)" @onclick="NextFocusedPage">
+                                Next
+                            </button>
+                        </div>
+                    }
+                }
             </div>
         </section>
 
@@ -404,9 +530,13 @@
 
 @code {
     private const int PageSize = 8;
+    private const int FocusedPageSize = 6;
 
     private MeshTopologyResponse? topology;
     private MeshTopologyNode[] visibleSensors = [];
+    private string? focusedSensorId;
+    private MeshConnection[] focusedConnections = [];
+    private int focusedPage;
 
     private Dictionary<string, NodePosition> positions =
         new(StringComparer.OrdinalIgnoreCase);
@@ -421,6 +551,9 @@
 
     private int TotalPages =>
         Math.Max(1, (filteredSensorCount + PageSize - 1) / PageSize);
+
+    private int FocusedTotalPages =>
+        Math.Max(1, (focusedConnections.Length + FocusedPageSize - 1) / FocusedPageSize);
 
     protected override async Task OnInitializedAsync()
     {
@@ -530,6 +663,15 @@
             .ToArray();
 
         CalculatePositions();
+
+        if (!visibleSensors.Any(node => string.Equals(
+                node.Id, focusedSensorId, StringComparison.OrdinalIgnoreCase)))
+        {
+            focusedSensorId = visibleSensors.FirstOrDefault()?.Id;
+            focusedPage = 0;
+        }
+
+        UpdateFocusedConnections();
     }
 
     private void CalculatePositions()
@@ -554,6 +696,60 @@
             positions[visibleSensors[i].Id] = new NodePosition(x, y);
         }
     }
+
+    private void OnFocusedSensorChanged(ChangeEventArgs args)
+    {
+        focusedSensorId = args.Value?.ToString();
+        focusedPage = 0;
+        UpdateFocusedConnections();
+    }
+
+    private void PreviousFocusedPage()
+    {
+        if (focusedPage > 0)
+        {
+            focusedPage--;
+        }
+    }
+
+    private void NextFocusedPage()
+    {
+        if (focusedPage < FocusedTotalPages - 1)
+        {
+            focusedPage++;
+        }
+    }
+
+    private void UpdateFocusedConnections()
+    {
+        if (topology is null || string.IsNullOrWhiteSpace(focusedSensorId))
+        {
+            focusedConnections = [];
+            focusedPage = 0;
+            return;
+        }
+        // include connections to sensors on other pages
+        focusedConnections = topology.Connections
+            .Where(connection =>
+                string.Equals(connection.Source, focusedSensorId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(connection.Target, focusedSensorId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(connection =>
+                string.Equals(GetFocusedNeighborId(connection), topology.GatewayId,
+                    StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(connection => GetFocusedNeighborId(connection),
+                StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        focusedPage = Math.Clamp(focusedPage, 0, FocusedTotalPages - 1);
+    }
+
+    private string GetFocusedNeighborId(MeshConnection connection) =>
+        string.Equals(connection.Source, focusedSensorId, StringComparison.OrdinalIgnoreCase)
+            ? connection.Target
+            : connection.Source;
+
+    private static NodePosition FocusedNodePosition(int index) =>
+        new(index % 2 == 0 ? 170 : 630, 75 + index / 2 * 90);
 
     private static RenderFragment SvgLabel(
         int x,

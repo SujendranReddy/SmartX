@@ -74,7 +74,7 @@ public sealed class MeshGraph
             throw new KeyNotFoundException(
                 "Both nodes must exist before creating a connection.");
         }
-
+        // store each connection in both directions
         adjacency[source][target] = cost;
         adjacency[target][source] = cost;
     }
@@ -144,7 +144,7 @@ public sealed class MeshGraph
             throw new KeyNotFoundException(
                 "The starting node does not exist.");
         }
-
+        // track visited sensors so they are not checked again
         var visited = new HashSet<string>(
             StringComparer.OrdinalIgnoreCase);
 
@@ -205,7 +205,7 @@ public sealed class MeshGraph
             StringComparer.OrdinalIgnoreCase);
 
         var selectedConnections = new List<MeshConnection>();
-
+        // use a priority queue to choose the lowest cost connection
         var frontier = new PriorityQueue<
             MeshConnection,
             (double Cost, string Source, string Target)>();
@@ -215,6 +215,7 @@ public sealed class MeshGraph
 
         while (frontier.TryDequeue(out var connection, out _))
         {
+            // skip connections that would create a cycle
             if (!visited.Add(connection.Target))
             {
                 continue;
