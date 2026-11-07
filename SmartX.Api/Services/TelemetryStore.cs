@@ -1,6 +1,7 @@
 ﻿
 using SmartX.Api.Collections;
 using SmartX.Shared.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SmartX.Api.Services;
 
@@ -29,7 +30,7 @@ public sealed class TelemetryStore<T> where T : struct
     public int AddBatch(Guid sensorId, TelemetryPacket<T>[][] batches)
     {
         ArgumentNullException.ThrowIfNull(batches);
-
+        // check all readings before saving any of them
         var incoming = new List<TelemetryPacket<T>>();
 
         foreach (var batch in batches)

@@ -227,6 +227,7 @@ public sealed class MeshTopologyService
             spanningTree);
     }
 
+    //exclude offline sensors without deleting their connections
     private MeshGraph BuildActiveGraph()
     {
         var activeGraph = new MeshGraph();
