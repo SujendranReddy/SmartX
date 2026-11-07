@@ -135,14 +135,13 @@ All 52 tests passed during final testing.
 8. Submit a normal reading of 50 and verify that the warning and recommendation disappear.
 9. Upload and download a sensor attachment.
 10. Load the demo dataset to test searching, pagination and historical readings.
-11. Run TelemetryQueueTests to verify FIFO and priority processing and DataStructureTests to verify dictionary lookups and sorted history.
-12. Run all 13 automated tests using dotnet test SmartX.Tests/SmartX.Tests.csproj.
-13. Open Network Topology and view the sensor connections.
-14. Connect sensors to the gateway and check their routes.
-15. Take a sensor offline and check if another route is found
-16. Bring the sensor back online and check if the original route works again.
-17. Restart the API and check that registered sensors and connections are still saved.
-18. Run all 52 tests using dotnet test SmartX.slnx.
+11. Open Network Topology and view the sensor connections.
+12. Select a sensor to view its direct connections, including sensors on other pages
+13. Create connections between sensors and the gateway, then inspect their routes.
+14. Take a sensor offline and check whether an alternative route is available.
+15. Bring the sensor back online and check whether the original route is restored.
+16. Restart the API and confirm that manually registered sensors and their connections are still saved
+17. Run all 52 automated tests using dotnet test SmartX.slnx.
 
 ## YouTube
 Part 1:
