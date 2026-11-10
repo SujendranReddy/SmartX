@@ -6,7 +6,9 @@ namespace SmartX.Shared.Requests;
 public sealed class RegisterSensorRequest
 {
     [Required(ErrorMessage = "Enter a device identifier.")]
-    [StringLength(100, ErrorMessage = "The device identifier cannot exceed 100 characters.")]
+    [StringLength(17, ErrorMessage = "A MAC address must contain 17 characters.")]
+    [RegularExpression(@"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+        ErrorMessage = "Enter a valid MAC address, for example AA:BB:CC:DD:EE:FF.")]
     public string DeviceIdentifier { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Enter a deployment location.")]

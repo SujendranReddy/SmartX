@@ -30,11 +30,12 @@
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <label for="deviceIdentifier" class="form-label">
-                            Device identifier
+                            MAC address
                         </label>
                         <InputText id="deviceIdentifier"
                                    class="form-control"
-                                   maxlength="100"
+                                   maxlength="17"
+                                   placeholder="AA:BB:CC:DD:EE:FF"
                                    @bind-Value="request.DeviceIdentifier" />
                         <ValidationMessage For="@(() => request.DeviceIdentifier)" />
                     </div>

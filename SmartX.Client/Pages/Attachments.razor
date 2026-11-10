@@ -285,8 +285,15 @@
             await using var stream = file.OpenReadStream(MaxFileSize);
             using var multipart = new MultipartFormDataContent();
 
+            using var fileContent = new StreamContent(stream);
+            var browserContentType = string.IsNullOrWhiteSpace(file.ContentType)
+                ? "application/octet-stream"
+                : file.ContentType;
+            fileContent.Headers.ContentType =
+                System.Net.Http.Headers.MediaTypeHeaderValue.Parse(browserContentType);
+
             multipart.Add(
-                new StreamContent(stream),
+                fileContent,
                 "file",
                 file.Name);
 

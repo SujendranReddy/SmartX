@@ -1,4 +1,4 @@
-
+﻿
 using SmartX.Shared.Models;
 using SmartX.Api.Endpoints;
 using SmartX.Api.Services;
@@ -108,6 +108,10 @@ app.MapGet(
         var secondMeter = new PowerReading(secondWatts);
         var limit = new PowerReading(limitWatts);
 
+        PowerReading difference = firstMeter >= secondMeter
+            ? firstMeter - secondMeter
+            : secondMeter - firstMeter;
+
         PowerReading total;
 
         try
@@ -127,6 +131,7 @@ app.MapGet(
             firstWatts = firstMeter.Watts,
             secondWatts = secondMeter.Watts,
             totalWatts = total.Watts,
+            differenceWatts = difference.Watts,
             limitWatts = limit.Watts,
             isOverLimit = total > limit
         });

@@ -23,6 +23,13 @@ public readonly record struct PowerReading
         return new PowerReading(checked(left.Watts + right.Watts));
     }
 
+    public static PowerReading operator -(
+        PowerReading left,
+        PowerReading right)
+    {
+        return new PowerReading(checked(left.Watts - right.Watts));
+    }
+
     public static bool operator >(
         PowerReading left,
         PowerReading right)

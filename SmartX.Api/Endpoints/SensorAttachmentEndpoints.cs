@@ -22,6 +22,22 @@ public static class SensorAttachmentEndpoints
             ".pdf"
         };
 
+    private static readonly Dictionary<string, string[]> AllowedContentTypes =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [".json"] = ["application/json", "text/json"],
+            [".xml"] = ["application/xml", "text/xml"],
+            [".yaml"] = ["application/yaml", "application/x-yaml", "text/yaml", "text/x-yaml"],
+            [".yml"] = ["application/yaml", "application/x-yaml", "text/yaml", "text/x-yaml"],
+            [".txt"] = ["text/plain"],
+            [".csv"] = ["text/csv", "application/csv", "application/vnd.ms-excel"],
+            [".log"] = ["text/plain", "application/octet-stream"],
+            [".jpg"] = ["image/jpeg"],
+            [".jpeg"] = ["image/jpeg"],
+            [".png"] = ["image/png"],
+            [".pdf"] = ["application/pdf"]
+        };
+
     public static void MapSensorAttachmentEndpoints(
         this WebApplication app)
     {
@@ -89,6 +105,17 @@ public static class SensorAttachmentEndpoints
                 return Results.Problem(
                     title: "Unsupported attachment type",
                     detail: "Use JSON, XML, YAML, YML, TXT, CSV, LOG, JPG, JPEG, PNG or PDF files.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            var contentType = file.ContentType.Split(';', 2)[0].Trim();
+
+            if (!AllowedContentTypes.TryGetValue(extension, out var allowedTypes) ||
+                !allowedTypes.Contains(contentType, StringComparer.OrdinalIgnoreCase))
+            {
+                return Results.Problem(
+                    title: "Invalid attachment content type",
+                    detail: "The uploaded file content type does not match its extension.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
