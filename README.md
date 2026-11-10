@@ -149,3 +149,6 @@ https://youtu.be/nanmlA89OEk?si=8S9GPO4PL3lNkro1
 
 Part 2:
 https://youtu.be/nL39yScdHOI?si=bpDK6O1TDdgTEO0o
+
+Part 3: 
+https://youtu.be/vV9JzgvWjfs?si=0ZbqbKAxY8_4jzPo
